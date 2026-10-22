@@ -2,12 +2,13 @@
 
 ## Alcance de este bloque
 
-Este bloque define los datos que Query necesita para servir HU13, HU14 y HU15 sin leer tablas de Scoring. Es una
-propuesta de contrato para revisión; **no crea tablas, endpoints ni migraciones**. La sincronización y el cambio
-de consultas se implementarán en bloques separados una vez validado el diseño.
+Este bloque define y crea el almacenamiento que Query necesita para servir HU13, HU14 y HU15 sin leer tablas de
+Scoring. La migración `V2__crear_proyeccion_lectura.sql` crea las tres tablas propuestas en `consulta`. Esta
+migración no agrega endpoints ni cambia el comportamiento de la API: la sincronización y el cambio de consultas
+se implementarán en bloques separados.
 
 HU14 CA17 exige justificar y aprobar cada tabla o componente de infraestructura nuevo antes de agregarlo. La
-proyección propuesta se justifica abajo; debe aprobarse antes de traducirla a migraciones.
+propuesta se justificó y recibió aprobación antes de crear la migración.
 
 ## Modelo mínimo propuesto
 
@@ -20,9 +21,11 @@ Las tablas vivirían en el esquema `consulta`, que ya pertenece a Query. No tend
 | `proyeccion_evaluacion` | `id_evaluacion` | `id_solicitante`, fecha de evaluación, puntaje total nullable, categoría nullable, versión de política nullable y estado nullable | Resumen para HU13/HU15 y estado para excluir pendientes; los null conservan evaluaciones anteriores a HU12/saga. |
 | `proyeccion_factor_evaluacion` | (`id_evaluacion`, `orden`) | ID de detalle/regla de origen, variable como snapshot, operador, valor de condición, puntaje de regla, condición cumplida y contribución persistida | HU13 necesita explicar la regla histórica; HU15 necesita derivar puntajes antiguos; HU14 necesita detectar factores desfavorables. |
 
-`proyeccion_factor_evaluacion.id_evaluacion` referenciaría la fila local de `proyeccion_evaluacion`. No se
-copiarían nombre, documento, ingresos, deudas ni otros atributos personales/financieros del solicitante. El ID
-del solicitante se conserva internamente para asociar el historial, pero no se agrega a la respuesta de HU13.
+`proyeccion_evaluacion.id_solicitante` referencia la fila local de `proyeccion_solicitante`, y
+`proyeccion_factor_evaluacion.id_evaluacion` referencia la evaluación local. No se crean llaves foráneas a
+`public`. No se copian nombre, documento, ingresos, deudas ni otros atributos personales/financieros del
+solicitante. El ID del solicitante se conserva internamente para asociar el historial, pero no se agrega a la
+respuesta de HU13.
 
 ### Restricciones e invariantes
 
@@ -53,7 +56,8 @@ del solicitante se conserva internamente para asociar el historial, pero no se a
 La proyección requiere cubrir dos tipos de dato, no solo evaluaciones:
 
 1. **Existencia de solicitante:** poblar los IDs existentes una vez y sincronizar los nuevos solicitantes. Es
-   necesario incluso cuando el solicitante aún no tiene evaluaciones.
+   necesario incluso cuando el solicitante aún no tiene evaluaciones. Al recibir una evaluación, Query debe
+   asegurar el registro local de su solicitante antes de guardar el snapshot, dentro de la misma transacción.
 2. **Snapshot de evaluación:** enviar la evaluación y todos sus factores en una unidad idempotente. HU14 ya
    tiene una llamada interna de Scoring a Query y un mecanismo durable de reintentos; se debe evaluar si ese
    flujo puede transportar el snapshot y reutilizarse sin crear un broker.
@@ -70,11 +74,10 @@ consultas actuales y la proyección.
 
 ## Versionamiento propuesto
 
-La implementación, tras aprobación, añadiría una migración nueva al historial propio de Query dentro de
-`consulta` (V1 ya existe para recomendaciones; V2 es la siguiente versión libre observada). Esta migración
-crearía únicamente las tablas de proyección y sus índices. No cambiaría las migraciones V1–V109 de `public`, no
-alteraría el historial de Scoring/Auth y no contendría backfill destructivo. El arranque normal seguiría
-validando Flyway; la aplicación se haría en despliegue controlado con el rol migrador de Query.
+La migración `consulta.V2` crea únicamente las tablas de proyección, las restricciones locales y el índice para
+listar evaluaciones por solicitante. `consulta.V1` sigue siendo la migración de recomendaciones. La V2 no cambia
+las migraciones V1–V109 de `public`, no altera el historial de Scoring/Auth y no hace backfill. El arranque
+normal sigue validando Flyway; su aplicación se realiza en despliegue controlado con el rol migrador de Query.
 
 ## Justificación de tablas nuevas (HU14 CA17)
 
@@ -89,7 +92,7 @@ Las tres tablas representan partes diferentes del read model; consolidarlas en J
 las cabeceras produciría duplicación y dificultaría integridad, consultas por solicitante y migración gradual.
 Esta justificación no sustituye la aprobación requerida por HU14 CA17.
 
-## Criterios para cerrar este bloque
+## Resultado y trabajo pendiente
 
 - El contrato contiene solo datos necesarios para HU13–HU15, con snapshots históricos y sin PII/atributos
   financieros innecesarios.
@@ -98,4 +101,5 @@ Esta justificación no sustituye la aprobación requerida por HU14 CA17.
   persistencia de recomendaciones.
 - Quedan identificados los eventos de sincronización, backfill y recuperación; el transporte se decide antes
   de implementar el escritor.
-- La propuesta de tablas queda justificada para la aprobación exigida por HU14 CA17.
+- La propuesta de tablas quedó justificada y aprobada conforme HU14 CA17; V2 implementa su estructura.
+- V2 no sincroniza datos, no cambia las consultas y no revoca aún permisos de Query sobre `public`.

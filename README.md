@@ -25,6 +25,13 @@ Alejandra el 2026-10-19 (P-HU14-01), y la definición de factor desfavorable est
   consulta nunca genera recomendaciones. Cada API confirma su propia transacción; no hay transacción
   distribuida.
 
+### Proyección de lectura (en preparación)
+
+La migración propia V2 crea en `consulta` las tablas `proyeccion_solicitante`, `proyeccion_evaluacion` y
+`proyeccion_factor_evaluacion`. En este bloque solo se prepara el almacenamiento: las lecturas todavía consultan
+`public` y no hay sincronización ni backfill. El [contrato de la proyección](docs/arquitectura/contrato-proyeccion-evaluaciones.md)
+describe la justificación, los datos mínimos y las etapas pendientes para activarla.
+
 ## Endpoints
 
 Los endpoints públicos exigen `Authorization: Bearer <token>` de `auth-api` con rol `ADMINISTRADOR_RIESGO` o
