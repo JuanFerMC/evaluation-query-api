@@ -5,9 +5,12 @@ import com.crediticio.evaluationquery.recomendaciones.domain.CatalogoRecomendaci
 import com.crediticio.evaluationquery.recomendaciones.domain.EvaluacionInexistenteException;
 import com.crediticio.evaluationquery.recomendaciones.domain.EvaluacionNoPendienteException;
 import com.crediticio.evaluationquery.recomendaciones.domain.EvaluacionParaRecomendar;
+import com.crediticio.evaluationquery.recomendaciones.domain.FactorEvaluado;
 import com.crediticio.evaluationquery.recomendaciones.domain.GeneracionRecomendaciones;
+import com.crediticio.evaluationquery.recomendaciones.domain.SnapshotEvaluacion;
 import com.crediticio.evaluationquery.recomendaciones.ports.output.CatalogoRecomendacionesPort;
 import com.crediticio.evaluationquery.recomendaciones.ports.output.EvaluacionParaRecomendarPort;
+import com.crediticio.evaluationquery.recomendaciones.ports.output.ProyeccionSnapshotRepositoryPort;
 import com.crediticio.evaluationquery.recomendaciones.ports.output.RecomendacionesRepositoryPort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,12 +27,15 @@ public class GeneracionRecomendacionesTransaccional {
     private final EvaluacionParaRecomendarPort evaluacionPort;
     private final RecomendacionesRepositoryPort repositorio;
     private final CatalogoRecomendacionesPort catalogoPort;
+    private final ProyeccionSnapshotRepositoryPort proyeccionPort;
 
     public GeneracionRecomendacionesTransaccional(EvaluacionParaRecomendarPort evaluacionPort,
-            RecomendacionesRepositoryPort repositorio, CatalogoRecomendacionesPort catalogoPort) {
+            RecomendacionesRepositoryPort repositorio, CatalogoRecomendacionesPort catalogoPort,
+            ProyeccionSnapshotRepositoryPort proyeccionPort) {
         this.evaluacionPort = evaluacionPort;
         this.repositorio = repositorio;
         this.catalogoPort = catalogoPort;
+        this.proyeccionPort = proyeccionPort;
     }
 
     /**
@@ -46,6 +52,26 @@ public class GeneracionRecomendacionesTransaccional {
         }
         EvaluacionParaRecomendar evaluacion = evaluacionPort.buscar(idEvaluacion)
                 .orElseThrow(EvaluacionInexistenteException::new);
+        return generarDesdeEvaluacion(evaluacion);
+    }
+
+    /** Persiste el snapshot recibido y genera desde ese mismo contenido, sin leer tablas de scoring-api. */
+    @Transactional
+    public Resultado generar(SnapshotEvaluacion snapshot) {
+        proyeccionPort.guardarSiNoExisteOIgual(snapshot);
+        Optional<GeneracionRecomendaciones> existente = repositorio.buscar(snapshot.idEvaluacion());
+        if (existente.isPresent()) {
+            return new Resultado(existente.get(), false);
+        }
+        EvaluacionParaRecomendar evaluacion = new EvaluacionParaRecomendar(snapshot.idEvaluacion(), snapshot.estado(),
+                snapshot.categoria(), snapshot.factores().stream()
+                        .map(factor -> new FactorEvaluado(factor.variable(), factor.condicionCumplida(),
+                                factor.contribucion()))
+                        .toList());
+        return generarDesdeEvaluacion(evaluacion);
+    }
+
+    private Resultado generarDesdeEvaluacion(EvaluacionParaRecomendar evaluacion) {
         if (!evaluacion.esPendiente() || evaluacion.categoria() == null) {
             throw new EvaluacionNoPendienteException();
         }
@@ -53,8 +79,9 @@ public class GeneracionRecomendacionesTransaccional {
         if (!catalogo.isAprobado()) {
             throw new CatalogoNoDisponibleException(catalogo.getVersion());
         }
-        GeneracionRecomendaciones generacion = new GeneracionRecomendaciones(idEvaluacion, catalogo.getVersion(),
-                evaluacion.categoria(), null, catalogo.seleccionar(evaluacion.categoria(), evaluacion.factores()));
+        GeneracionRecomendaciones generacion = new GeneracionRecomendaciones(evaluacion.idEvaluacion(),
+                catalogo.getVersion(), evaluacion.categoria(), null,
+                catalogo.seleccionar(evaluacion.categoria(), evaluacion.factores()));
         return new Resultado(repositorio.guardar(generacion), true);
     }
 

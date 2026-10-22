@@ -35,7 +35,7 @@ class GenerarRecomendacionesServiceTest {
 
     private GenerarRecomendacionesService servicio() {
         GeneracionRecomendacionesTransaccional transaccional = new GeneracionRecomendacionesTransaccional(
-                id -> Optional.ofNullable(evaluaciones.get(id)), repositorio, () -> catalogo);
+                id -> Optional.ofNullable(evaluaciones.get(id)), repositorio, () -> catalogo, snapshot -> { });
         return new GenerarRecomendacionesService(transaccional, new RecomendacionesMapper());
     }
 

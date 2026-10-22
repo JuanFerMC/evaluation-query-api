@@ -58,9 +58,9 @@ La proyección requiere cubrir dos tipos de dato, no solo evaluaciones:
 1. **Existencia de solicitante:** poblar los IDs existentes una vez y sincronizar los nuevos solicitantes. Es
    necesario incluso cuando el solicitante aún no tiene evaluaciones. Al recibir una evaluación, Query debe
    asegurar el registro local de su solicitante antes de guardar el snapshot, dentro de la misma transacción.
-2. **Snapshot de evaluación:** enviar la evaluación y todos sus factores en una unidad idempotente. HU14 ya
-   tiene una llamada interna de Scoring a Query y un mecanismo durable de reintentos; se debe evaluar si ese
-   flujo puede transportar el snapshot y reutilizarse sin crear un broker.
+2. **Snapshot de evaluación:** implementado en la llamada HU14 existente. Scoring envía los valores persistidos de
+   la evaluación pendiente y todos sus factores; Query los inserta o compara en una unidad idempotente y genera
+   recomendaciones desde ese snapshot en la misma transacción. No se crea un broker.
 3. **Confirmación de finalización:** Query mantiene `PENDIENTE` hasta que Scoring confirme que guardó las
    recomendaciones y completó la evaluación. La confirmación también debe poder reintentarse después de un
    fallo de red o un reinicio, para no presentar una evaluación como completa prematuramente.
@@ -100,7 +100,7 @@ Esta justificación no sustituye la aprobación requerida por HU14 CA17.
 - Se reconoce explícitamente la necesidad de proyectar IDs de solicitantes sin evaluaciones.
 - El estado `PENDIENTE` no se convierte en `COMPLETADA` hasta la confirmación de Scoring posterior a la
   persistencia de recomendaciones.
-- Query ya ofrece operaciones internas para registrar solicitantes y confirmar evaluaciones; quedan pendientes
-  el snapshot inicial, el despachador, el backfill y la reconciliación.
+- Query ya ofrece operaciones internas para registrar solicitantes, recibir snapshots y confirmar evaluaciones.
+  Quedan pendientes el despachador, el backfill y la reconciliación.
 - La propuesta de tablas quedó justificada y aprobada conforme HU14 CA17; V2 implementa su estructura.
 - V2 no sincroniza datos, no cambia las consultas y no revoca aún permisos de Query sobre `public`.

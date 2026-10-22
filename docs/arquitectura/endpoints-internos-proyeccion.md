@@ -7,6 +7,16 @@ Query recibe dos eventos del outbox Scoring en operaciones internas protegidas. 
 
 ## Contrato
 
+La ruta HU14 `PUT /internal/v1/evaluaciones/{idEvaluacion}/recomendaciones` también acepta el snapshot de
+Scoring en el cuerpo JSON. Incluye la cabecera (ID de evaluación y solicitante, fecha, puntaje, categoría, versión
+de política y estado) y la lista ordenada de factores persistidos (IDs de detalle y regla, variable, condición
+aplicada, puntaje, resultado y contribución). No incluye datos personales o financieros del solicitante. El ID
+del cuerpo debe coincidir con el de la ruta, el estado debe ser `PENDIENTE` y el puntaje debe ser igual a la suma
+de contribuciones. Query inserta el snapshot local y genera recomendaciones desde el mismo objeto dentro de una
+transacción; en reintentos exige igualdad exacta y responde 409 si el contenido histórico difiere. Por compatibilidad
+temporal, un cuerpo vacío sigue usando el lector anterior desde `public` hasta retirar las instancias antiguas de
+Scoring.
+
 | Método y ruta | Resultado | Idempotencia |
 |---|---|---|
 | `PUT /internal/v1/proyeccion/solicitantes/{idSolicitante}` | `204 No Content`; `400 VALIDATION_ERROR` si el ID no es positivo | Inserta el ID o no hace nada si ya existe |

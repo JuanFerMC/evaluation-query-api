@@ -12,7 +12,7 @@ diseño y su avance; los bloques aún no completados se indican explícitamente.
 | Proyección Query V2 | Migración creada; sin backfill y sin lecturas migradas |
 | Outbox Scoring V12 | Migración y productores transaccionales creados; migración no aplicada a la base |
 | Operaciones internas Query | Registro idempotente de solicitante y transición idempotente a `COMPLETADA` implementados |
-| Snapshot inicial de evaluación | Pendiente: la petición HU14 aún debe transportar el snapshot a Query |
+| Snapshot inicial de evaluación | Implementado en el contrato HU14; Scoring envía datos persistidos y Query los inserta o compara en V2 |
 | Despachador Scoring | Pendiente |
 | Backfill, reconciliación y retiro de SELECT cruzados | Pendientes |
 
@@ -21,7 +21,10 @@ diseño y su avance; los bloques aún no completados se indican explícitamente.
 - Scoring y Query comparten PostgreSQL. Query lee las tablas de Scoring en `public` durante las peticiones.
 - El procesamiento de HU14 ya tiene el outbox `trabajo_recomendacion` en Scoring. Guarda el trabajo pendiente,
   aplica reintentos y solo marca la evaluación `COMPLETADA` después de persistir las recomendaciones.
-- La llamada actual a Query lleva el ID de evaluación; Query vuelve a leer el resto del snapshot desde `public`.
+- La llamada HU14 con cuerpo transporta desde Scoring la evaluación PENDIENTE y sus factores persistidos. Query guarda
+  o compara el snapshot en `consulta` y genera desde el cuerpo recibido, sin consultar `public` en ese flujo.
+- Para despliegue escalonado, el endpoint todavía admite cuerpo vacío y conserva temporalmente el camino anterior,
+  que sí lee `public`; retirar ese camino requiere desplegar Scoring compatible en todas las instancias.
 - El alta de solicitante ya registra un evento durable en el outbox V12. El despachador aún no lo envía a Query.
 - HU14 CA13/CA15 exige que un fallo al confirmar la finalización deje la evaluación `PENDIENTE`. Por ello Query
   no puede inferir que quedó completa solo porque guardó las recomendaciones.
@@ -36,9 +39,9 @@ Scoring registra en `public.evento_proyeccion_query` los cambios que deben llega
 | `EVALUACION_COMPLETADA` | Confirmación final que marca la evaluación completa | ID de la evaluación y estado `COMPLETADA` |
 
 La primera sincronización y los snapshots completos de evaluación quedan cubiertos por el flujo HU14 existente:
-Scoring amplía la llamada de generación para enviar el snapshot persistido (incluida la evaluación `PENDIENTE` y
-sus factores). Query lo guarda en V2 y genera las recomendaciones en su transacción local. Un reintento vuelve a
-enviar el mismo snapshot; claves y validaciones impiden duplicados o cambios históricos.
+Scoring envía el snapshot persistido (incluida la evaluación `PENDIENTE` y sus factores). Query lo guarda en V2 y
+genera las recomendaciones en su transacción local. Un reintento vuelve a enviar el mismo snapshot; claves y
+validaciones impiden duplicados o cambios históricos.
 
 El outbox es una tabla pequeña con ID de evento, tipo, clave del agregado, payload JSON, fecha de
 creación, estado (`PENDIENTE`, `ENTREGADO` o `ERROR_PERMANENTE`), número de intentos, próxima fecha de intento,
@@ -87,8 +90,9 @@ resuelve el alta de un solicitante sin evaluación.
 
 - La migración **V12** en Scoring crea el outbox; no altera tablas de Auth ni las de `consulta`. Está preparada,
   pero no aplicada a la base.
-- Desplegar primero Query con las operaciones internas compatibles; luego Scoring con la tabla y el emisor; por
-  último, poblar y verificar V2 antes de cambiar las lecturas de HU13–HU15.
+- Aplicar primero V2 de Query y sus permisos INSERT/SELECT sobre las tablas de proyección; aplicar V12 y sus
+  permisos en Scoring antes de desplegar su código. Desplegar Query (compatible con cuerpo vacío y con snapshot)
+  antes de Scoring que envía el snapshot. Luego poblar y verificar V2 antes de cambiar las lecturas de HU13–HU15.
 - El rol de Scoring tendrá los permisos mínimos para insertar/actualizar/reclamar sus eventos. Query no recibe
   permisos de escritura sobre `public`; conserva temporalmente sus permisos SELECT durante el backfill y la
   transición.
@@ -96,5 +100,6 @@ resuelve el alta de un solicitante sin evaluación.
   `ERROR_PERMANENTE`, el procedimiento de reintento y la reconciliación de IDs.
 
 HU14 CA17 justificó y aprobó el outbox PostgreSQL antes de crear V12. Los bloques actuales implementan
-gradualmente esa decisión. El outbox aún no se considera activo en producción: falta aplicar V12, conectar el
-despachador y desplegar el receptor de snapshots antes de acumular eventos pendientes.
+gradualmente esa decisión. El outbox aún no se considera activo en producción: falta aplicar V12 y conectar el
+despachador antes de acumular eventos pendientes. El snapshot de HU14 requiere V2 instalada y las tablas
+proyectadas aún requieren backfill antes de servir HU13/HU15 sin lecturas cruzadas.

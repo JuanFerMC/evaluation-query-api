@@ -12,8 +12,8 @@ import java.util.Optional;
 
 /**
  * Lee con SELECT el estado de la saga, la clasificación persistida y los factores de una evaluación de
- * scoring-api (HU14 CA02, CA09). La contribución de cada factor es el puntaje obtenido guardado en el detalle;
- * no se recalcula nada.
+ * scoring-api para las consultas públicas y compatibilidad con el endpoint interno antiguo (HU14 CA02, CA09).
+ * La nueva generación recibe el snapshot explícito; la contribución nunca se recalcula.
  */
 @Component
 public class EvaluacionParaRecomendarJdbcAdapter implements EvaluacionParaRecomendarPort {

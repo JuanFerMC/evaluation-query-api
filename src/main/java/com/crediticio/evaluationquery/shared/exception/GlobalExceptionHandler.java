@@ -8,6 +8,8 @@ import com.crediticio.evaluationquery.proyeccion.domain.EstadoProyeccionIncompat
 import com.crediticio.evaluationquery.recomendaciones.domain.CatalogoNoDisponibleException;
 import com.crediticio.evaluationquery.recomendaciones.domain.EvaluacionInexistenteException;
 import com.crediticio.evaluationquery.recomendaciones.domain.EvaluacionNoPendienteException;
+import com.crediticio.evaluationquery.recomendaciones.domain.SnapshotEvaluacionInconsistenteException;
+import com.crediticio.evaluationquery.recomendaciones.domain.SnapshotEvaluacionInvalidoException;
 import com.crediticio.evaluationquery.shared.response.ApiError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,6 +70,18 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> manejarEvaluacionNoPendiente(EvaluacionNoPendienteException ex) {
         log.warn("Generación de recomendaciones rechazada: la evaluación no está pendiente");
         return construirRespuesta(HttpStatus.CONFLICT, "EVALUACION_NO_PENDIENTE", ex.getMessage());
+    }
+
+    @ExceptionHandler(SnapshotEvaluacionInvalidoException.class)
+    public ResponseEntity<ApiError> manejarSnapshotInvalido(SnapshotEvaluacionInvalidoException ex) {
+        log.warn("Se rechazó un snapshot de evaluación que no cumple el contrato");
+        return construirRespuesta(HttpStatus.BAD_REQUEST, "SNAPSHOT_EVALUACION_INVALIDO", ex.getMessage());
+    }
+
+    @ExceptionHandler(SnapshotEvaluacionInconsistenteException.class)
+    public ResponseEntity<ApiError> manejarSnapshotInconsistente(SnapshotEvaluacionInconsistenteException ex) {
+        log.error(ex.getMessage());
+        return construirRespuesta(HttpStatus.CONFLICT, "SNAPSHOT_EVALUACION_INCONSISTENTE", ex.getMessage());
     }
 
     /** Sin un catálogo APROBADO no se generan recomendaciones; la saga lo trata como transitorio y reintenta. */
