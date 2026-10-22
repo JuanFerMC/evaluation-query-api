@@ -68,9 +68,10 @@ La proyección requiere cubrir dos tipos de dato, no solo evaluaciones:
    históricas desde `public`, cotejar conteos/IDs y recuperar entregas incompletas. El rol de Query puede perder
    sus permisos de lectura sobre `public` solo después de completar y verificar esta etapa.
 
-El transporte final sigue pendiente de diseño. Scoring no debe escribir tablas del esquema `consulta`; Query
-debe ser su único escritor. El despliegue debe seguir funcionando durante la transición, cuando convivan las
-consultas actuales y la proyección.
+El transporte final se propone en [`sincronizacion-proyeccion-query.md`](sincronizacion-proyeccion-query.md): un
+outbox local en PostgreSQL sin broker externo. Aún requiere aprobación conforme HU14 CA17. Scoring no debe
+escribir tablas del esquema `consulta`; Query debe ser su único escritor. El despliegue debe seguir funcionando
+durante la transición, cuando convivan las consultas actuales y la proyección.
 
 ## Versionamiento propuesto
 
