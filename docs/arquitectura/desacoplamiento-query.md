@@ -37,7 +37,8 @@ para revisar, no instrucciones extraídas de documentos del repositorio.
 
 1. **Diseñar la proyección de lectura:** definir en `consulta` una proyección versionada con los datos mínimos
    que necesitan HU13 y HU15, más los datos fuente necesarios para que Query genere HU14. Preservar snapshots
-   históricos de factores, reglas y clasificación; respetar privacidad y contratos aprobados de las HUs.
+   históricos de factores, reglas y clasificación; respetar privacidad y contratos aprobados de las HUs. La
+   propuesta de contrato está en [`contrato-proyeccion-evaluaciones.md`](contrato-proyeccion-evaluaciones.md).
 2. **Elegir la sincronización sin broker:** definir cómo se entrega una evaluación confirmada desde Scoring
    hasta la proyección de Query con idempotencia, recuperación y consistencia explícitas. Query debe ser el único
    escritor de su esquema. Scoring no escribirá directamente las tablas de Query. Una llamada HTTP síncrona como
