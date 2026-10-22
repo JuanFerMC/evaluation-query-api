@@ -120,10 +120,10 @@ las evaluaciones PENDIENTE (CA08); `estado` es `COMPLETADA` o `null` (anterior a
 
 | Variable | Obligatoria | Descripción |
 |---|---|---|
-| `AUTH_JWT_ISSUER` | Sí | Emisor de los JWT; debe ser el mismo valor configurado en `auth-api` (allí, `auth-api` por defecto) |
+| `AUTH_JWT_ISSUER` | Sí | Emisor de los JWT; debe ser el mismo valor configurado en `auth-api` (por defecto `crediticio-auth`) |
 | `EVALUATION_QUERY_JWT_PUBLIC_KEY_LOCATION` | Sí | Ubicación de la clave pública RS256 de `auth-api`, p. ej. `file:/ruta/jwt-publica.pem` |
 | `EVALUATION_QUERY_DB_URL` | Sí | Base de `scoring-api`, con el formato `postgresql://host:puerto/base` (Spring agrega `jdbc:`) |
-| `EVALUATION_QUERY_DB_USERNAME` / `EVALUATION_QUERY_DB_PASSWORD` | Sí | Rol de la aplicación: **solo SELECT** sobre las tablas de `scoring-api` y SELECT e INSERT sobre las de su esquema propio |
+| `EVALUATION_QUERY_DB_USERNAME` / `EVALUATION_QUERY_DB_PASSWORD` | Sí | Rol de aplicación: **solo SELECT** sobre Scoring; SELECT/INSERT en tablas propias y UPDATE únicamente de `estado` en `proyeccion_evaluacion` |
 | `EVALUATION_QUERY_DB_SCHEMA` | No | Esquema propio de las recomendaciones (por defecto `consulta`); debe existir (Flyway no lo crea) |
 | `EVALUATION_QUERY_FLYWAY_MIGRAR_AL_ARRANCAR` | No | `false` por defecto: Flyway solo valida y, con migraciones pendientes, la aplicación no arranca y no aplica nada. `true` solo en un despliegue controlado |
 | `SPRING_FLYWAY_USER` / `SPRING_FLYWAY_PASSWORD` | Solo al migrar | Rol propietario del esquema propio, que aplica la migración V1 de esta API |
