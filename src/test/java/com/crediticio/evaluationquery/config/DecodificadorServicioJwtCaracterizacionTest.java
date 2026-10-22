@@ -64,6 +64,7 @@ class DecodificadorServicioJwtCaracterizacionTest {
     private static final String SUJETO = "scoring-api";
     private static final String AUDIENCIA = "evaluation-query-api-internal";
     private static final String PERMISO = "recomendaciones:generar";
+    private static final String PERMISO_PROYECCION = "proyeccion:actualizar";
     private static final JOSEObjectType TIPO = new JOSEObjectType("scoring-svc+jwt");
     private static final String KID_A = "kid-a";
     private static final String KID_B = "kid-b";
@@ -157,13 +158,15 @@ class DecodificadorServicioJwtCaracterizacionTest {
     }
 
     @Test
-    void debeExigirElPermisoDeGeneracion() {
+    void debeExigirUnPermisoDeServicioReconocido() {
         assertThat(errores(firmar(CLAVES_A, KID_A, validos().claim("scope", null).build())))
                 .containsExactly("scope");
         assertThat(errores(firmar(CLAVES_A, KID_A, validos().claim("scope", "otro").build())))
                 .containsExactly("scope");
         assertThat(DECODER.decode(firmar(CLAVES_A, KID_A, validos().claim("scope", "otro " + PERMISO).build()))
                 .getSubject()).isEqualTo(SUJETO);
+        assertThat(DECODER.decode(firmar(CLAVES_A, KID_A,
+                validos().claim("scope", PERMISO_PROYECCION).build())).getSubject()).isEqualTo(SUJETO);
     }
 
     @Test
@@ -326,7 +329,8 @@ class DecodificadorServicioJwtCaracterizacionTest {
                 validador("vida", jwt -> jwt.getExpiresAt() == null || jwt.getIssuedAt() == null
                         || !jwt.getExpiresAt().isAfter(jwt.getIssuedAt().plusSeconds(60))),
                 new JwtClaimValidator<String>("scope",
-                        scope -> scope != null && List.of(scope.split(" ")).contains(PERMISO)),
+                        scope -> scope != null && List.of(scope.split(" ")).stream()
+                                .anyMatch(Set.of(PERMISO, PERMISO_PROYECCION)::contains)),
                 validador("role", jwt -> !jwt.hasClaim("role"))));
         if (validarKid) {
             validadores.add(validador("kid", jwt -> kids.contains(jwt.getHeaders().get("kid"))));

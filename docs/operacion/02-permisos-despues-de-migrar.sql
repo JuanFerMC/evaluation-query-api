@@ -1,5 +1,5 @@
--- evaluation-query-api, paso 2 de 2: permisos del rol de la aplicación DESPUÉS de aplicar la migración V1
--- propia (tablas de recomendaciones). Lo ejecuta el administrador de la base; no se ha ejecutado sobre
+-- evaluation-query-api, paso 2 de 2: permisos del rol de la aplicación DESPUÉS de aplicar las migraciones V1 y V2
+-- propias (recomendaciones y proyección). Lo ejecuta el administrador de la base; no se ha ejecutado sobre
 -- motor_scoring. Se ha verificado en esquemas temporales de motor_scoring_it.
 --
 -- Si la migración la ejecutó otro rol (por ejemplo, el administrador), los objetos creados pasan al propietario
@@ -7,6 +7,7 @@
 --
 -- El rol de la aplicación:
 --   - lee e inserta recomendaciones (nunca UPDATE ni DELETE: además, los triggers de V1 las hacen inmutables);
+--   - escribe solicitantes y snapshots en la proyección; solo puede actualizar el estado de evaluación;
 --   - solo lee el historial de Flyway (la aplicación valida las migraciones al arrancar; no migra).
 --
 -- Uso: psql -h <host> -U <administrador> -d motor_scoring -v rol_app=<rol de la aplicación> \
@@ -89,6 +90,10 @@ $$;
 
 GRANT SELECT, INSERT ON :"esquema".generacion_recomendaciones, :"esquema".recomendacion_evaluacion
     TO :"rol_app";
+GRANT SELECT, INSERT ON :"esquema".proyeccion_solicitante, :"esquema".proyeccion_factor_evaluacion
+    TO :"rol_app";
+GRANT SELECT, INSERT ON :"esquema".proyeccion_evaluacion TO :"rol_app";
+GRANT UPDATE (estado) ON :"esquema".proyeccion_evaluacion TO :"rol_app";
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA :"esquema" TO :"rol_app";
 GRANT SELECT ON :"esquema".flyway_schema_history TO :"rol_app";
 

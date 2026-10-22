@@ -78,7 +78,7 @@ class ServicioJwtConfigTest {
     private static ServicioJwtProperties propiedades(String kid, Resource clave, String kidAnterior,
             Resource claveAnterior) {
         return new ServicioJwtProperties("scoring-api", "scoring-api", "evaluation-query-api-internal",
-                "recomendaciones:generar", "scoring-svc+jwt", Duration.ofSeconds(30), Duration.ofSeconds(60), kid,
-                clave, kidAnterior, claveAnterior);
+                "recomendaciones:generar", "proyeccion:actualizar", "scoring-svc+jwt", Duration.ofSeconds(30),
+                Duration.ofSeconds(60), kid, clave, kidAnterior, claveAnterior);
     }
 }

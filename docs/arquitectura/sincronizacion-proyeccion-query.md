@@ -1,9 +1,20 @@
-# Sincronización propuesta de la proyección de Query
+# Sincronización de la proyección de Query
 
-## Decisión que se necesita
+## Decisión
 
-La proyección V2 ya tiene almacenamiento, pero no hay una forma fiable de poblarla. Este documento propone un
-flujo de entrega sin broker externo. Es un diseño para revisión; **no crea migraciones, endpoints ni procesos**.
+La estrategia aprobada es un outbox local PostgreSQL en Scoring, sin broker externo. Este documento registra el
+diseño y su avance; los bloques aún no completados se indican explícitamente.
+
+## Estado actual de implementación
+
+| Parte | Estado |
+|---|---|
+| Proyección Query V2 | Migración creada; sin backfill y sin lecturas migradas |
+| Outbox Scoring V12 | Migración y productores transaccionales creados; migración no aplicada a la base |
+| Operaciones internas Query | Registro idempotente de solicitante y transición idempotente a `COMPLETADA` implementados |
+| Snapshot inicial de evaluación | Pendiente: la petición HU14 aún debe transportar el snapshot a Query |
+| Despachador Scoring | Pendiente |
+| Backfill, reconciliación y retiro de SELECT cruzados | Pendientes |
 
 ## Situación del código actual
 
@@ -11,15 +22,13 @@ flujo de entrega sin broker externo. Es un diseño para revisión; **no crea mig
 - El procesamiento de HU14 ya tiene el outbox `trabajo_recomendacion` en Scoring. Guarda el trabajo pendiente,
   aplica reintentos y solo marca la evaluación `COMPLETADA` después de persistir las recomendaciones.
 - La llamada actual a Query lleva el ID de evaluación; Query vuelve a leer el resto del snapshot desde `public`.
-- La creación de un solicitante no crea un trabajo durable dirigido a Query. Si Query estuviera fuera de línea,
-  no habría forma garantizada de proyectar un solicitante que todavía no tiene evaluaciones.
+- El alta de solicitante ya registra un evento durable en el outbox V12. El despachador aún no lo envía a Query.
 - HU14 CA13/CA15 exige que un fallo al confirmar la finalización deje la evaluación `PENDIENTE`. Por ello Query
   no puede inferir que quedó completa solo porque guardó las recomendaciones.
 
-## Propuesta: outbox PostgreSQL local, sin broker
+## Outbox PostgreSQL local, sin broker
 
-Agregar en Scoring un registro de entrega transaccional, en el mismo `public`, para los cambios que deben llegar a
-Query:
+Scoring registra en `public.evento_proyeccion_query` los cambios que deben llegar a Query:
 
 | Evento | Se registra en la transacción de | Contenido mínimo |
 |---|---|---|
@@ -31,20 +40,18 @@ Scoring amplía la llamada de generación para enviar el snapshot persistido (in
 sus factores). Query lo guarda en V2 y genera las recomendaciones en su transacción local. Un reintento vuelve a
 enviar el mismo snapshot; claves y validaciones impiden duplicados o cambios históricos.
 
-El nuevo outbox sería una tabla pequeña con ID de evento, tipo, clave del agregado, payload JSON, fecha de
+El outbox es una tabla pequeña con ID de evento, tipo, clave del agregado, payload JSON, fecha de
 creación, estado (`PENDIENTE`, `ENTREGADO` o `ERROR_PERMANENTE`), número de intentos, próxima fecha de intento,
 concesión temporal y último error acotado. Un proceso de Scoring reclama filas vencidas mediante
-`FOR UPDATE SKIP LOCKED`, envía cada evento por HTTP a operaciones internas de Query que se agregarían en un
-bloque posterior y
-marca la entrega en una transacción local. No mantiene una transacción abierta durante la llamada HTTP. Las
+`FOR UPDATE SKIP LOCKED`, envía cada evento por HTTP a las operaciones internas de Query y marca la entrega en
+una transacción local. No mantiene una transacción abierta durante la llamada HTTP. Las
 respuestas se aplican de forma idempotente en Query; los eventos repetidos no duplican solicitantes ni
 reemplazan snapshots. Los errores transitorios se reintentan y los permanentes quedan disponibles para
 intervención operativa.
 
-La API interna de Query debe aceptar el ID de solicitante y la confirmación de estado final. Reutilizar la
-identidad S1 existente requiere añadir un permiso específico para actualizar la proyección, separado de
-`recomendaciones:generar`, con la misma clave de servicio y audiencia interna. Ningún endpoint de proyección se
-expone al frontend ni acepta tokens de usuario.
+La API interna de Query acepta el ID de solicitante y la confirmación de estado final. Reutiliza la identidad S1
+con el permiso específico `proyeccion:actualizar`, separado de `recomendaciones:generar`, y la misma clave de
+servicio y audiencia interna. Ningún endpoint de proyección se expone al frontend ni acepta tokens de usuario.
 
 ## Orden y consistencia
 
@@ -76,10 +83,10 @@ solicitantes sin evaluaciones y la confirmación de finalización posterior al g
 Reutilizar `trabajo_recomendacion` para estos casos mezclaría operaciones con ciclos de vida distintos y no
 resuelve el alta de un solicitante sin evaluación.
 
-## Versionamiento y despliegue propuestos
+## Versionamiento y despliegue
 
-- Agregar una migración **V12** en Scoring, porque el historial de `public` llega actualmente a V11. La
-  migración crea solo el outbox; no altera tablas de Auth ni las de `consulta`.
+- La migración **V12** en Scoring crea el outbox; no altera tablas de Auth ni las de `consulta`. Está preparada,
+  pero no aplicada a la base.
 - Desplegar primero Query con las operaciones internas compatibles; luego Scoring con la tabla y el emisor; por
   último, poblar y verificar V2 antes de cambiar las lecturas de HU13–HU15.
 - El rol de Scoring tendrá los permisos mínimos para insertar/actualizar/reclamar sus eventos. Query no recibe
@@ -88,9 +95,6 @@ resuelve el alta de un solicitante sin evaluación.
 - El proceso no se considera activo hasta documentar alarmas o revisión operativa para
   `ERROR_PERMANENTE`, el procedimiento de reintento y la reconciliación de IDs.
 
-## Aprobación requerida antes de implementar
-
-HU14 CA17 exige justificar y aprobar toda tabla/componente nuevo antes de agregarlo. La tabla V12 está
-justificada arriba, pero todavía no se ha creado. La aprobación permite implementar el siguiente bloque en
-Scoring y Query; si no se aprueba un outbox PostgreSQL, se debe elegir otra estrategia que preserve la entrega
-después de una caída sin mantener un SELECT funcional de Query sobre las tablas de Scoring.
+HU14 CA17 justificó y aprobó el outbox PostgreSQL antes de crear V12. Los bloques actuales implementan
+gradualmente esa decisión. El outbox aún no se considera activo en producción: falta aplicar V12, conectar el
+despachador y desplegar el receptor de snapshots antes de acumular eventos pendientes.

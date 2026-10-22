@@ -7,6 +7,9 @@ HU14), y verificada por `SeguridadIntegracionTest`, `ConsultasEvaluacionIntegrac
 `RecomendacionesIntegracionTest` y `ServicioJwtConfigTest`. Las demás secciones describen requisitos y
 propuestas todavía no implementados.
 
+Las dos rutas internas nuevas de proyección están implementadas en este bloque; su cobertura de integración
+automatizada queda pendiente.
+
 ## Autenticación de usuarios
 
 - Cada petición protegida exige un JWT de acceso emitido por `auth-api` en la cabecera
@@ -25,7 +28,7 @@ propuestas todavía no implementados.
   una rotación): RS256; `typ` `scoring-svc+jwt`; `kid` configurado (un token sin `kid` se rechaza); `iss` y
   `sub` `scoring-api`; `aud` `evaluation-query-api-internal`; `exp` e `iat` obligatorios (el `iat` se exige en
   Nimbus, antes de que Spring rellene uno ausente); 30 s de tolerancia; `exp − iat` ≤ 60 s; `scope` con
-  `recomendaciones:generar`; sin claim `role`.
+  `recomendaciones:generar` o `proyeccion:actualizar`, según la ruta; sin claim `role`.
 - Un token de usuario se rechaza en la ruta interna (401) y un token de servicio se rechaza en las rutas de
   usuario (401): firma, emisor, audiencia y claims son distintos.
 
@@ -37,6 +40,8 @@ propuestas todavía no implementados.
 | `GET /api/v1/evaluaciones/{idEvaluacion}/recomendaciones` | Permitido | Permitido | 401 | HU14 CA07, CA11, HU10 CA04 (P-HU14-05) |
 | `GET /api/v1/solicitantes/{idSolicitante}/evaluaciones` | Permitido | Permitido | 401 | HU15 CA10, HU10 CA04 |
 | `PUT /internal/v1/evaluaciones/{idEvaluacion}/recomendaciones` | Rechazado (401) | Rechazado (401) | 401 | HU14: solo el token de servicio S1 con el permiso `recomendaciones:generar` |
+| `PUT /internal/v1/proyeccion/solicitantes/{idSolicitante}` | Rechazado (401) | Rechazado (401) | 401 | Proyección: solo S1 con `proyeccion:actualizar`; idempotente |
+| `PUT /internal/v1/proyeccion/evaluaciones/{idEvaluacion}/completada` | Rechazado (401) | Rechazado (401) | 401 | Proyección: solo S1 con `proyeccion:actualizar`; solo `PENDIENTE` → `COMPLETADA` |
 | `GET /actuator/health` | Público, sin detalles | Público, sin detalles | Público | Operación |
 | Swagger (`/v3/api-docs/**`, `/swagger-ui/**`) | Solo con el perfil `dev` | Solo con el perfil `dev` | Solo con el perfil `dev`; si no, 401 | Operación |
 | Cualquier otra ruta o método | 403 | 403 | 401 | Denegada por defecto |

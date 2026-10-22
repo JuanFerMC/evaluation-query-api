@@ -12,8 +12,9 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * HU14: cadena de seguridad de /internal/**, evaluada antes que la de usuarios. Solo acepta el token de servicio
- * S1 (ServicioJwtConfig) con el permiso de generación; un token de usuario se rechaza con 401 porque su firma,
+ * Cadena de seguridad de /internal/**, evaluada antes que la de usuarios. Solo acepta el token de servicio
+ * S1 (ServicioJwtConfig) con el permiso específico de cada operación; un token de usuario se rechaza con 401
+ * porque su firma,
  * emisor y audiencia no corresponden. Solo existe con evaluationquery.saga.habilitada=true; si no, /internal/**
  * lo deniega la cadena de usuarios.
  */
@@ -26,14 +27,17 @@ public class SeguridadServicioConfig {
     @Order(1)
     public SecurityFilterChain cadenaServicio(HttpSecurity http, ServicioJwtProperties propiedades) throws Exception {
         RespuestaSeguridadJson respuestas = new RespuestaSeguridadJson();
-        String autoridad = "SCOPE_" + propiedades.permiso();
         http
                 .securityMatcher("/internal/**")
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sesion -> sesion.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(autorizacion -> autorizacion
                         .requestMatchers(HttpMethod.PUT, "/internal/v1/evaluaciones/*/recomendaciones")
-                                .hasAuthority(autoridad)
+                                .hasAuthority("SCOPE_" + propiedades.permiso())
+                        .requestMatchers(HttpMethod.PUT, "/internal/v1/proyeccion/solicitantes/*")
+                                .hasAuthority("SCOPE_" + propiedades.permisoProyeccion())
+                        .requestMatchers(HttpMethod.PUT, "/internal/v1/proyeccion/evaluaciones/*/completada")
+                                .hasAuthority("SCOPE_" + propiedades.permisoProyeccion())
                         .anyRequest().denyAll())
                 .oauth2ResourceServer(recursos -> recursos
                         .jwt(jwt -> jwt.decoder(ServicioJwtConfig.decodificador(propiedades)))
