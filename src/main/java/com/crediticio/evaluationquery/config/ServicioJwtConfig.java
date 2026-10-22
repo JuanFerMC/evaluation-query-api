@@ -36,10 +36,10 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * Decodificador del token de servicio S1 (HU14, composición verificada en
+ * Decodificador del token de servicio S1 (HU14 y proyección, composición verificada en
  * DecodificadorServicioJwtCaracterizacionTest): RS256 con clave elegida por kid (una o dos, para rotar), typ,
  * kid configurado, iss, aud, sub, exp e iat obligatorios, tolerancia de reloj, duración máxima, scope con el
- * permiso de generación y sin claim role. No se registra como bean: la cadena de usuarios usa el JwtDecoder de
+ * permiso S1 permitido (generación o actualización de proyección) y sin claim role. No se registra como bean: la cadena de usuarios usa el JwtDecoder de
  * JwtConfig y nunca acepta tokens de servicio.
  */
 public final class ServicioJwtConfig {
@@ -91,6 +91,8 @@ public final class ServicioJwtConfig {
         String sujeto = requerirTexto(propiedades.sujeto(), "evaluationquery.servicio-jwt.sujeto");
         String audiencia = requerirTexto(propiedades.audiencia(), "evaluationquery.servicio-jwt.audiencia");
         String permiso = requerirTexto(propiedades.permiso(), "evaluationquery.servicio-jwt.permiso");
+        String permisoProyeccion = requerirTexto(propiedades.permisoProyeccion(),
+                "evaluationquery.servicio-jwt.permiso-proyeccion");
         String tipo = requerirTexto(propiedades.tipo(), "evaluationquery.servicio-jwt.tipo");
         Duration tolerancia = requerirDuracion(propiedades.tolerancia(), "evaluationquery.servicio-jwt.tolerancia");
         Duration duracionMaxima = requerirDuracion(propiedades.duracionMaxima(),
@@ -112,7 +114,8 @@ public final class ServicioJwtConfig {
                 validador("vida", jwt -> jwt.getExpiresAt() == null || jwt.getIssuedAt() == null
                         || !jwt.getExpiresAt().isAfter(jwt.getIssuedAt().plus(duracionMaxima))),
                 new JwtClaimValidator<String>(CLAIM_ALCANCE,
-                        alcance -> alcance != null && List.of(alcance.split(" ")).contains(permiso)),
+                        alcance -> alcance != null && List.of(alcance.split(" ")).stream()
+                                .anyMatch(Set.of(permiso, permisoProyeccion)::contains)),
                 validador("role", jwt -> !jwt.hasClaim(JwtConfig.CLAIM_ROL)));
     }
 

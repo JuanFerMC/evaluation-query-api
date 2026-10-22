@@ -68,8 +68,8 @@ La proyección requiere cubrir dos tipos de dato, no solo evaluaciones:
    históricas desde `public`, cotejar conteos/IDs y recuperar entregas incompletas. El rol de Query puede perder
    sus permisos de lectura sobre `public` solo después de completar y verificar esta etapa.
 
-El transporte final se propone en [`sincronizacion-proyeccion-query.md`](sincronizacion-proyeccion-query.md): un
-outbox local en PostgreSQL sin broker externo. Aún requiere aprobación conforme HU14 CA17. Scoring no debe
+El transporte final se definió en [`sincronizacion-proyeccion-query.md`](sincronizacion-proyeccion-query.md): un
+outbox local en PostgreSQL sin broker externo, aprobado conforme HU14 CA17. Scoring no debe
 escribir tablas del esquema `consulta`; Query debe ser su único escritor. El despliegue debe seguir funcionando
 durante la transición, cuando convivan las consultas actuales y la proyección.
 
@@ -100,7 +100,7 @@ Esta justificación no sustituye la aprobación requerida por HU14 CA17.
 - Se reconoce explícitamente la necesidad de proyectar IDs de solicitantes sin evaluaciones.
 - El estado `PENDIENTE` no se convierte en `COMPLETADA` hasta la confirmación de Scoring posterior a la
   persistencia de recomendaciones.
-- Quedan identificados los eventos de sincronización, backfill y recuperación; el transporte se decide antes
-  de implementar el escritor.
+- Query ya ofrece operaciones internas para registrar solicitantes y confirmar evaluaciones; quedan pendientes
+  el snapshot inicial, el despachador, el backfill y la reconciliación.
 - La propuesta de tablas quedó justificada y aprobada conforme HU14 CA17; V2 implementa su estructura.
 - V2 no sincroniza datos, no cambia las consultas y no revoca aún permisos de Query sobre `public`.

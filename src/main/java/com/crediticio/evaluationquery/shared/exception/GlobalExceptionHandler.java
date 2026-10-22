@@ -3,6 +3,8 @@ package com.crediticio.evaluationquery.shared.exception;
 import com.crediticio.evaluationquery.explicacion.domain.EvaluacionNoEncontradaException;
 import com.crediticio.evaluationquery.explicacion.domain.ExplicacionInconsistenteException;
 import com.crediticio.evaluationquery.historial.domain.SolicitanteNoEncontradoException;
+import com.crediticio.evaluationquery.proyeccion.domain.EvaluacionProyectadaNoEncontradaException;
+import com.crediticio.evaluationquery.proyeccion.domain.EstadoProyeccionIncompatibleException;
 import com.crediticio.evaluationquery.recomendaciones.domain.CatalogoNoDisponibleException;
 import com.crediticio.evaluationquery.recomendaciones.domain.EvaluacionInexistenteException;
 import com.crediticio.evaluationquery.recomendaciones.domain.EvaluacionNoPendienteException;
@@ -39,6 +41,19 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> manejarEvaluacionInexistente(EvaluacionInexistenteException ex) {
         log.warn("Recomendaciones de una evaluación que no existe");
         return construirRespuesta(HttpStatus.NOT_FOUND, "EVALUACION_NO_ENCONTRADA", ex.getMessage());
+    }
+
+    @ExceptionHandler(EvaluacionProyectadaNoEncontradaException.class)
+    public ResponseEntity<ApiError> manejarEvaluacionProyectadaNoEncontrada(
+            EvaluacionProyectadaNoEncontradaException ex) {
+        log.info("Confirmación recibida antes de que la evaluación exista en la proyección");
+        return construirRespuesta(HttpStatus.NOT_FOUND, "EVALUACION_PROYECCION_NO_ENCONTRADA", ex.getMessage());
+    }
+
+    @ExceptionHandler(EstadoProyeccionIncompatibleException.class)
+    public ResponseEntity<ApiError> manejarEstadoProyeccionIncompatible(EstadoProyeccionIncompatibleException ex) {
+        log.warn("Se rechazó una transición de estado incompatible en la proyección");
+        return construirRespuesta(HttpStatus.CONFLICT, "ESTADO_PROYECCION_INCOMPATIBLE", ex.getMessage());
     }
 
     /** La evaluación sigue PENDIENTE en la saga: todavía no es una evaluación completa (HU14 CA13). */

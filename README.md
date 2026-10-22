@@ -5,7 +5,8 @@ recomendaciones (HU14) y el historial de evaluaciones de un solicitante (HU15), 
 autorización transversal de HU10.
 
 Estado (2026-10-19): HU13, HU14 y HU15 implementadas sobre el esquema de `scoring-api` con la saga de
-recomendaciones (V1–V11). El catálogo de recomendaciones incluido es la **versión 1, APROBADA** por María
+recomendaciones (V1–V11). La proyección V2 está creada; la migración de snapshots y el cambio de lecturas siguen
+pendientes. El catálogo de recomendaciones incluido es la **versión 1, APROBADA** por María
 Alejandra el 2026-10-19 (P-HU14-01), y la definición de factor desfavorable está confirmada (P-HU14-02).
 
 ## Arquitectura
@@ -28,9 +29,10 @@ Alejandra el 2026-10-19 (P-HU14-01), y la definición de factor desfavorable est
 ### Proyección de lectura (en preparación)
 
 La migración propia V2 crea en `consulta` las tablas `proyeccion_solicitante`, `proyeccion_evaluacion` y
-`proyeccion_factor_evaluacion`. En este bloque solo se prepara el almacenamiento: las lecturas todavía consultan
-`public` y no hay sincronización ni backfill. El [contrato de la proyección](docs/arquitectura/contrato-proyeccion-evaluaciones.md)
-describe la justificación, los datos mínimos y las etapas pendientes para activarla.
+`proyeccion_factor_evaluacion`. Hay operaciones internas idempotentes para registrar solicitantes y confirmar
+evaluaciones. Las lecturas todavía consultan `public`; el envío de snapshots, el despachador y el backfill siguen
+pendientes. El [contrato de la proyección](docs/arquitectura/contrato-proyeccion-evaluaciones.md) y el
+[contrato de sincronización](docs/arquitectura/endpoints-internos-proyeccion.md) describen el estado del trabajo.
 
 ## Endpoints
 
@@ -44,6 +46,8 @@ las respuestas llevan `X-Trace-Id` (se reutiliza el recibido si es un UUID váli
 | `GET /api/v1/evaluaciones/{idEvaluacion}/recomendaciones` | 200 recomendaciones; 400; 401; 403; 404 `EVALUACION_NO_ENCONTRADA`; 409 `EVALUACION_PENDIENTE` |
 | `GET /api/v1/solicitantes/{idSolicitante}/evaluaciones` | 200 lista (vacía si no tiene evaluaciones); 400; 401; 403; 404 `SOLICITANTE_NO_ENCONTRADO` |
 | `PUT /internal/v1/evaluaciones/{idEvaluacion}/recomendaciones` | **Interna**: solo existe con la saga habilitada y solo la autoriza el token de servicio S1 (ningún token de usuario). 201 generada; 200 ya existía (reintento); 401; 404; 409 `EVALUACION_NO_PENDIENTE`; 503 `CATALOGO_NO_DISPONIBLE`. No forma parte del contrato del frontend ni aparece en Swagger |
+| `PUT /internal/v1/proyeccion/solicitantes/{idSolicitante}` | **Interna**: token S1 con `proyeccion:actualizar`; 204 (también si ya existía); 400; 401; 403. No forma parte del contrato del frontend |
+| `PUT /internal/v1/proyeccion/evaluaciones/{idEvaluacion}/completada` | **Interna**: token S1 con `proyeccion:actualizar`; 204 (actualizada o ya completada); 400; 401; 403; 404 si todavía no se ha proyectado; 409 si el estado histórico es incompatible. No forma parte del contrato del frontend |
 | `GET /actuator/health` | Público, sin detalles |
 | `GET /v3/api-docs`, `/swagger-ui.html` | Solo con el perfil `dev` (`-Dspring-boot.run.profiles=dev`); si no, 401 |
 

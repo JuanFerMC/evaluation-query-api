@@ -16,6 +16,7 @@ public record ServicioJwtProperties(
         String sujeto,
         String audiencia,
         String permiso,
+        String permisoProyeccion,
         String tipo,
         Duration tolerancia,
         Duration duracionMaxima,
