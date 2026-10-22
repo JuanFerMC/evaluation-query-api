@@ -2,6 +2,7 @@ package com.crediticio.evaluationquery.recomendaciones.application;
 
 import com.crediticio.evaluationquery.recomendaciones.application.dto.ResultadoGeneracionResponse;
 import com.crediticio.evaluationquery.recomendaciones.domain.GeneracionConcurrenteException;
+import com.crediticio.evaluationquery.recomendaciones.domain.SnapshotEvaluacion;
 import com.crediticio.evaluationquery.recomendaciones.ports.input.GenerarRecomendacionesUseCase;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +30,16 @@ public class GenerarRecomendacionesService implements GenerarRecomendacionesUseC
             return mapper.aResultado(resultado.generacion(), resultado.creada());
         } catch (GeneracionConcurrenteException ex) {
             return mapper.aResultado(transaccional.existente(idEvaluacion).orElseThrow(() -> ex), false);
+        }
+    }
+
+    @Override
+    public ResultadoGeneracionResponse generar(SnapshotEvaluacion snapshot) {
+        try {
+            GeneracionRecomendacionesTransaccional.Resultado resultado = transaccional.generar(snapshot);
+            return mapper.aResultado(resultado.generacion(), resultado.creada());
+        } catch (GeneracionConcurrenteException ex) {
+            return mapper.aResultado(transaccional.existente(snapshot.idEvaluacion()).orElseThrow(() -> ex), false);
         }
     }
 }

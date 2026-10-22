@@ -4,9 +4,9 @@ API del Motor de Scoring de Riesgo Crediticio para consultar la explicación de 
 recomendaciones (HU14) y el historial de evaluaciones de un solicitante (HU15), con la autenticación y
 autorización transversal de HU10.
 
-Estado (2026-10-19): HU13, HU14 y HU15 implementadas sobre el esquema de `scoring-api` con la saga de
-recomendaciones (V1–V11). La proyección V2 está creada; la migración de snapshots y el cambio de lecturas siguen
-pendientes. El catálogo de recomendaciones incluido es la **versión 1, APROBADA** por María
+Estado (2026-10-22): HU13, HU14 y HU15 implementadas sobre el esquema de `scoring-api` con la saga de
+recomendaciones. La proyección V2 está creada y el endpoint HU14 ya recibe snapshots de evaluaciones; el
+despachador, el backfill y el cambio de lecturas siguen pendientes. El catálogo de recomendaciones incluido es la **versión 1, APROBADA** por María
 Alejandra el 2026-10-19 (P-HU14-01), y la definición de factor desfavorable está confirmada (P-HU14-02).
 
 ## Arquitectura
@@ -30,7 +30,8 @@ Alejandra el 2026-10-19 (P-HU14-01), y la definición de factor desfavorable est
 
 La migración propia V2 crea en `consulta` las tablas `proyeccion_solicitante`, `proyeccion_evaluacion` y
 `proyeccion_factor_evaluacion`. Hay operaciones internas idempotentes para registrar solicitantes y confirmar
-evaluaciones. Las lecturas todavía consultan `public`; el envío de snapshots, el despachador y el backfill siguen
+evaluaciones. Scoring envía el snapshot persistido en la llamada HU14; Query lo guarda y genera recomendaciones
+en una transacción local. Las lecturas públicas todavía consultan `public`; el despachador y el backfill siguen
 pendientes. El [contrato de la proyección](docs/arquitectura/contrato-proyeccion-evaluaciones.md) y el
 [contrato de sincronización](docs/arquitectura/endpoints-internos-proyeccion.md) describen el estado del trabajo.
 
@@ -45,7 +46,7 @@ las respuestas llevan `X-Trace-Id` (se reutiliza el recibido si es un UUID váli
 | `GET /api/v1/evaluaciones/{idEvaluacion}/explicacion` | 200 explicación; 400 `VALIDATION_ERROR`; 401 `NO_AUTENTICADO`; 403 `ACCESO_DENEGADO`; 404 `EVALUACION_NO_ENCONTRADA`; 409 `EVALUACION_PENDIENTE`; 500 `INTERNAL_ERROR` si los datos persistidos son incoherentes |
 | `GET /api/v1/evaluaciones/{idEvaluacion}/recomendaciones` | 200 recomendaciones; 400; 401; 403; 404 `EVALUACION_NO_ENCONTRADA`; 409 `EVALUACION_PENDIENTE` |
 | `GET /api/v1/solicitantes/{idSolicitante}/evaluaciones` | 200 lista (vacía si no tiene evaluaciones); 400; 401; 403; 404 `SOLICITANTE_NO_ENCONTRADO` |
-| `PUT /internal/v1/evaluaciones/{idEvaluacion}/recomendaciones` | **Interna**: solo existe con la saga habilitada y solo la autoriza el token de servicio S1 (ningún token de usuario). 201 generada; 200 ya existía (reintento); 401; 404; 409 `EVALUACION_NO_PENDIENTE`; 503 `CATALOGO_NO_DISPONIBLE`. No forma parte del contrato del frontend ni aparece en Swagger |
+| `PUT /internal/v1/evaluaciones/{idEvaluacion}/recomendaciones` | **Interna**: solo existe con la saga habilitada y solo la autoriza el token de servicio S1 (ningún token de usuario). Acepta el snapshot JSON de Scoring; lo inserta o verifica sin sobrescribirlo y genera desde ese contenido en una transacción local. Durante el despliegue escalonado aún acepta el cuerpo vacío para instancias antiguas de Scoring. 201 generada; 200 ya existía (reintento); 401; 404; 409 por snapshot inconsistente o evaluación no pendiente; 503 `CATALOGO_NO_DISPONIBLE`. No forma parte del contrato del frontend ni aparece en Swagger |
 | `PUT /internal/v1/proyeccion/solicitantes/{idSolicitante}` | **Interna**: token S1 con `proyeccion:actualizar`; 204 (también si ya existía); 400; 401; 403. No forma parte del contrato del frontend |
 | `PUT /internal/v1/proyeccion/evaluaciones/{idEvaluacion}/completada` | **Interna**: token S1 con `proyeccion:actualizar`; 204 (actualizada o ya completada); 400; 401; 403; 404 si todavía no se ha proyectado; 409 si el estado histórico es incompatible. No forma parte del contrato del frontend |
 | `GET /actuator/health` | Público, sin detalles |
@@ -119,10 +120,10 @@ las evaluaciones PENDIENTE (CA08); `estado` es `COMPLETADA` o `null` (anterior a
 
 | Variable | Obligatoria | Descripción |
 |---|---|---|
-| `AUTH_JWT_ISSUER` | Sí | Emisor de los JWT; debe ser el mismo valor configurado en `auth-api` (allí, `auth-api` por defecto) |
+| `AUTH_JWT_ISSUER` | Sí | Emisor de los JWT; debe ser el mismo valor configurado en `auth-api` (por defecto `crediticio-auth`) |
 | `EVALUATION_QUERY_JWT_PUBLIC_KEY_LOCATION` | Sí | Ubicación de la clave pública RS256 de `auth-api`, p. ej. `file:/ruta/jwt-publica.pem` |
 | `EVALUATION_QUERY_DB_URL` | Sí | Base de `scoring-api`, con el formato `postgresql://host:puerto/base` (Spring agrega `jdbc:`) |
-| `EVALUATION_QUERY_DB_USERNAME` / `EVALUATION_QUERY_DB_PASSWORD` | Sí | Rol de la aplicación: **solo SELECT** sobre las tablas de `scoring-api` y SELECT e INSERT sobre las de su esquema propio |
+| `EVALUATION_QUERY_DB_USERNAME` / `EVALUATION_QUERY_DB_PASSWORD` | Sí | Rol de aplicación: **solo SELECT** sobre Scoring; SELECT/INSERT en tablas propias y UPDATE únicamente de `estado` en `proyeccion_evaluacion` |
 | `EVALUATION_QUERY_DB_SCHEMA` | No | Esquema propio de las recomendaciones (por defecto `consulta`); debe existir (Flyway no lo crea) |
 | `EVALUATION_QUERY_FLYWAY_MIGRAR_AL_ARRANCAR` | No | `false` por defecto: Flyway solo valida y, con migraciones pendientes, la aplicación no arranca y no aplica nada. `true` solo en un despliegue controlado |
 | `SPRING_FLYWAY_USER` / `SPRING_FLYWAY_PASSWORD` | Solo al migrar | Rol propietario del esquema propio, que aplica la migración V1 de esta API |
@@ -147,8 +148,9 @@ sobre `motor_scoring` y requiere autorización.
 2. Después del commit intenta la generación en línea con `PUT /internal/...` y un token de servicio S1 nuevo
    (RS256, `kid`, `typ` `scoring-svc+jwt`, `aud` `evaluation-query-api-internal`, `scope`
    `recomendaciones:generar`, 60 s, sin `role`).
-3. Esta API lee la clasificación y los factores persistidos, aplica el catálogo APROBADO y guarda la generación;
-   un reintento recibe la guardada (200) sin regenerarla, aunque el catálogo haya cambiado.
+3. Scoring lee la clasificación y los factores ya persistidos y los envía como snapshot. Esta API conserva y
+   verifica el snapshot en `consulta`, aplica el catálogo APROBADO y guarda la generación en la misma transacción;
+   un reintento debe traer el mismo snapshot y recibe la generación guardada (200), aunque el catálogo haya cambiado.
 4. `scoring-api` marca la evaluación COMPLETADA. Si la llamada falla, la evaluación sigue PENDIENTE y el
    reenvío programado reintenta (hasta 10 intentos, espera exponencial de 5 s a 300 s).
 

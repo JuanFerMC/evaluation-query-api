@@ -3,8 +3,9 @@ package com.crediticio.evaluationquery.recomendaciones.domain;
 import java.util.List;
 
 /**
- * Datos persistidos de una evaluación que necesita HU14: estado de la saga (null antes de la saga),
- * clasificación persistida (null antes de HU12) y factores aplicados.
+ * Datos de una evaluación que necesita HU14: estado de la saga (null antes de la saga), clasificación y factores.
+ * Los nuevos snapshots se reciben de Scoring; el adaptador de origen se conserva temporalmente para consultas
+ * públicas y compatibilidad durante el despliegue gradual.
  */
 public record EvaluacionParaRecomendar(long idEvaluacion, String estado, String categoria,
         List<FactorEvaluado> factores) {
