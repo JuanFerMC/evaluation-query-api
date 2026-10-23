@@ -22,3 +22,4 @@ respaldos/
 # Estado local de herramientas
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+!.env.example
