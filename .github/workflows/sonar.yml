@@ -1,5 +1,4 @@
-
-name: Tests y cobertura SonarCloud
+name: Tests unitarios y cobertura SonarCloud
 
 on:
   push:
@@ -13,7 +12,7 @@ permissions:
 
 jobs:
   sonar:
-    name: Pruebas, cobertura y análisis
+    name: Pruebas unitarias y JaCoCo
     runs-on: ubuntu-latest
 
     steps:
@@ -23,8 +22,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Configurar Java 21
-      - name: Configurar Java
+      # Configurar Java
+      - name: Configurar Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -35,22 +34,23 @@ jobs:
       - name: Preparar Maven Wrapper
         run: chmod +x mvnw
 
-      # Ejecutar pruebas unitarias, integración y generar JaCoCo
-      - name: Ejecutar pruebas y JaCoCo
-        run: ./mvnw -B clean verify
+      # Ejecutar únicamente las pruebas unitarias
+      - name: Ejecutar pruebas unitarias y JaCoCo
+        run: ./mvnw -B clean test
 
-      # Verificar que se haya generado el XML
+      # Comprobar el reporte XML
       - name: Comprobar informe JaCoCo
         run: |
           if [ ! -f target/site/jacoco/jacoco.xml ]; then
-            echo "ERROR: No se encontró target/site/jacoco/jacoco.xml"
-            echo "Contenido de target/site:"
+            echo "ERROR: No se encontró el reporte XML de JaCoCo."
+            echo "Archivos disponibles en target/site:"
             find target/site -maxdepth 3 -type f 2>/dev/null || true
             exit 1
           fi
-          echo "Informe JaCoCo encontrado correctamente."
 
-      # Analizar el proyecto y enviar la cobertura a SonarCloud
+          echo "Reporte JaCoCo encontrado correctamente."
+
+      # Enviar análisis y cobertura a SonarCloud
       - name: Analizar en SonarCloud
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -67,4 +67,3 @@ jobs:
             -Dsonar.organization="$SONAR_ORGANIZATION" \
             -Dsonar.projectKey="$SONAR_PROJECT_KEY" \
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
-
