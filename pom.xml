@@ -86,7 +86,7 @@
             <version>3.1.0</version>
         </dependency>
 
-        <!-- DevTools -->
+        <!-- Herramientas de desarrollo -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-devtools</artifactId>
@@ -115,19 +115,21 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Pruebas -->
+        <!-- Pruebas JPA -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa-test</artifactId>
             <scope>test</scope>
         </dependency>
 
+        <!-- Pruebas de seguridad -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security-test</artifactId>
             <scope>test</scope>
         </dependency>
 
+        <!-- Pruebas web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc-test</artifactId>
@@ -145,7 +147,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
 
-            <!-- Compilación y procesamiento de anotaciones Lombok -->
+            <!-- Compilación y Lombok -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -184,7 +186,7 @@
                 </executions>
             </plugin>
 
-            <!-- Pruebas de integración -->
+            <!-- Pruebas de integración: no se ejecutan en el workflow de cobertura -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
@@ -212,14 +214,14 @@
                 </executions>
             </plugin>
 
-            <!-- JaCoCo: cobertura unitaria e integración -->
+            <!-- JaCoCo: únicamente cobertura de pruebas unitarias -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.13</version>
 
                 <executions>
-                    <!-- Instrumentar pruebas unitarias -->
+                    <!-- Registrar cobertura durante las pruebas unitarias -->
                     <execution>
                         <id>prepare-agent</id>
                         <goals>
@@ -227,45 +229,17 @@
                         </goals>
                     </execution>
 
-                    <!-- Instrumentar pruebas de integración -->
-                    <execution>
-                        <id>prepare-agent-integration</id>
-                        <goals>
-                            <goal>prepare-agent-integration</goal>
-                        </goals>
-                    </execution>
-
-                    <!-- Combinar resultados -->
-                    <execution>
-                        <id>merge</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>merge</goal>
-                        </goals>
-                        <configuration>
-                            <fileSets>
-                                <fileSet>
-                                    <directory>${project.build.directory}</directory>
-                                    <includes>
-                                        <include>jacoco.exec</include>
-                                        <include>jacoco-it.exec</include>
-                                    </includes>
-                                </fileSet>
-                            </fileSets>
-                            <destFile>${project.build.directory}/jacoco-merged.exec</destFile>
-                        </configuration>
-                    </execution>
-
-                    <!-- Generar reporte HTML y XML para SonarCloud -->
+                    <!-- Generar reporte XML y HTML en la fase test -->
                     <execution>
                         <id>report</id>
-                        <phase>verify</phase>
+                        <phase>test</phase>
                         <goals>
                             <goal>report</goal>
                         </goals>
                         <configuration>
-                            <dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
-                            <outputDirectory>${project.reporting.outputDirectory}/jacoco</outputDirectory>
+                            <outputDirectory>
+                                ${project.reporting.outputDirectory}/jacoco
+                            </outputDirectory>
                         </configuration>
                     </execution>
                 </executions>
