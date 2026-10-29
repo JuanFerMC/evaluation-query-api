@@ -1,3 +1,4 @@
+
 name: Tests y cobertura SonarCloud
 
 on:
@@ -12,14 +13,17 @@ permissions:
 
 jobs:
   sonar:
+    name: Pruebas, cobertura y análisis
     runs-on: ubuntu-latest
 
     steps:
+      # Descargar el código
       - name: Descargar código
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # Configurar Java 21
       - name: Configurar Java
         uses: actions/setup-java@v4
         with:
@@ -27,24 +31,40 @@ jobs:
           java-version: '21'
           cache: maven
 
+      # Preparar Maven Wrapper
       - name: Preparar Maven Wrapper
         run: chmod +x mvnw
 
+      # Ejecutar pruebas unitarias, integración y generar JaCoCo
       - name: Ejecutar pruebas y JaCoCo
         run: ./mvnw -B clean verify
 
+      # Verificar que se haya generado el XML
       - name: Comprobar informe JaCoCo
-        run: test -f target/site/jacoco/jacoco.xml
+        run: |
+          if [ ! -f target/site/jacoco/jacoco.xml ]; then
+            echo "ERROR: No se encontró target/site/jacoco/jacoco.xml"
+            echo "Contenido de target/site:"
+            find target/site -maxdepth 3 -type f 2>/dev/null || true
+            exit 1
+          fi
+          echo "Informe JaCoCo encontrado correctamente."
 
+      # Analizar el proyecto y enviar la cobertura a SonarCloud
       - name: Analizar en SonarCloud
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
           SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
         run: |
+          test -n "$SONAR_TOKEN" || (echo "ERROR: Falta SONAR_TOKEN" && exit 1)
+          test -n "$SONAR_ORGANIZATION" || (echo "ERROR: Falta SONAR_ORGANIZATION" && exit 1)
+          test -n "$SONAR_PROJECT_KEY" || (echo "ERROR: Falta SONAR_PROJECT_KEY" && exit 1)
+
           ./mvnw -B org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.host.url=https://sonarcloud.io \
             -Dsonar.token="$SONAR_TOKEN" \
             -Dsonar.organization="$SONAR_ORGANIZATION" \
-            -Dsonar.projectKey="$SONAR_PROJECT_KEY"
+            -Dsonar.projectKey="$SONAR_PROJECT_KEY" \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
 
