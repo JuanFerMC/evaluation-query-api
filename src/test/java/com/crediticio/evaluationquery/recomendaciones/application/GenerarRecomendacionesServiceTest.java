@@ -10,6 +10,7 @@ import com.crediticio.evaluationquery.recomendaciones.domain.EvaluacionParaRecom
 import com.crediticio.evaluationquery.recomendaciones.domain.FactorEvaluado;
 import com.crediticio.evaluationquery.recomendaciones.domain.GeneracionRecomendaciones;
 import com.crediticio.evaluationquery.recomendaciones.domain.RecomendacionGenerada;
+import com.crediticio.evaluationquery.recomendaciones.domain.SnapshotEvaluacion;
 import com.crediticio.evaluationquery.recomendaciones.domain.TipoActivacion;
 import org.junit.jupiter.api.Test;
 
@@ -43,6 +44,37 @@ class GenerarRecomendacionesServiceTest {
         evaluaciones.put(id, new EvaluacionParaRecomendar(id, "PENDIENTE", "MEDIO", List.of(
                 new FactorEvaluado("NUMERO_MORAS", true, -20),
                 new FactorEvaluado("INGRESOS_MENSUALES", false, 0))));
+    }
+
+
+    private SnapshotEvaluacion snapshot(long id) {
+        return new SnapshotEvaluacion(id, 12, java.time.LocalDateTime.of(2026, 10, 18, 10, 0),
+                -20, "MEDIO", 1, "PENDIENTE", List.of(
+                        new SnapshotEvaluacion.Factor(1, 101, 201, "NUMERO_MORAS", ">", "2",
+                                -20, true, -20)));
+    }
+
+    @Test
+    void debePersistirElSnapshotYGenerarRecomendacionesDesdeSuContenido() {
+        ResultadoGeneracionResponse resultado = servicio().generar(snapshot(21));
+
+        assertThat(resultado).isEqualTo(new ResultadoGeneracionResponse(21, "V1", 2, true));
+        assertThat(repositorio.guardadas).containsKey(21L);
+        assertThat(repositorio.guardadas.get(21L).recomendaciones())
+                .extracting(RecomendacionGenerada::codigo)
+                .containsExactly("REC-CAT-MEDIO-01", "REC-MORAS-01");
+    }
+
+    @Test
+    void unReintentoConSnapshotDebeDevolverLaGeneracionExistenteSinDuplicarla() {
+        GeneracionRecomendaciones existente = new GeneracionRecomendaciones(22, "V0", "MEDIO",
+                RecomendacionesEnMemoria.FECHA, List.of());
+        repositorio.guardadas.put(22L, existente);
+
+        ResultadoGeneracionResponse resultado = servicio().generar(snapshot(22));
+
+        assertThat(resultado).isEqualTo(new ResultadoGeneracionResponse(22, "V0", 0, false));
+        assertThat(repositorio.inserciones).isZero();
     }
 
     @Test
