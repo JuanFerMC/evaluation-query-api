@@ -39,9 +39,13 @@ public class SecurityConfig {
     private boolean swaggerHabilitado;
 
     @Bean
+    @SuppressWarnings("java:S4502")
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         RespuestaSeguridadJson respuestas = new RespuestaSeguridadJson();
         http
+                // CSRF desactivado intencionalmente: API stateless que autentica exclusivamente
+                // con JWT enviado explícitamente en Authorization: Bearer. No se utilizan
+                // cookies de autenticación ni sesiones HTTP; el navegador no adjunta credenciales.
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sesion -> sesion.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -77,6 +81,8 @@ public class SecurityConfig {
         configuration.setAllowedMethods(List.of("GET", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Content-Type", "Accept", "Authorization", "X-Trace-Id"));
         configuration.setExposedHeaders(List.of("X-Trace-Id"));
+        // La API no utiliza cookies de autenticación ni credenciales automáticas del navegador.
+        configuration.setAllowCredentials(false);
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
