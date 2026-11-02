@@ -154,6 +154,24 @@ class SeguridadIntegracionTest {
     }
 
     @Test
+    void unaCookieSinBearerNoDebeAutenticarLaPeticion() throws Exception {
+        mockMvc.perform(get(RUTA_SIN_ENDPOINT)
+                        .cookie(new jakarta.servlet.http.Cookie("access_token", "jwt-falso")))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("NO_AUTENTICADO"));
+    }
+
+    @Test
+    void elPreflightNoDebePermitirCredencialesAutomaticas() throws Exception {
+        mockMvc.perform(options(RUTA_SIN_ENDPOINT)
+                        .header(HttpHeaders.ORIGIN, "http://localhost:3000")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "GET")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "Authorization"))
+                .andExpect(status().isOk())
+                .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS));
+    }
+
+    @Test
     void elPreflightDesdeUnOrigenPermitidoDebeAdmitirAuthorization() throws Exception {
         mockMvc.perform(options(RUTA_SIN_ENDPOINT)
                         .header(HttpHeaders.ORIGIN, "http://localhost:3000")
