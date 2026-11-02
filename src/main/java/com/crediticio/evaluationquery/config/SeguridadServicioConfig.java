@@ -25,10 +25,15 @@ public class SeguridadServicioConfig {
 
     @Bean
     @Order(1)
+    @SuppressWarnings("java:S4502")
     public SecurityFilterChain cadenaServicio(HttpSecurity http, ServicioJwtProperties propiedades) throws Exception {
         RespuestaSeguridadJson respuestas = new RespuestaSeguridadJson();
         http
                 .securityMatcher("/internal/**")
+                // CSRF desactivado intencionalmente: esta cadena protege exclusivamente
+                // endpoints internos invocados servidor-a-servidor con JWT de servicio en
+                // Authorization: Bearer. No usa cookies ni sesiones HTTP; las credenciales
+                // no son adjuntadas automáticamente por el navegador.
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sesion -> sesion.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(autorizacion -> autorizacion
