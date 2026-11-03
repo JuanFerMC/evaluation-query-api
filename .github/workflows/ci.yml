@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD
 
 on:
   push:
@@ -10,9 +10,10 @@ on:
 permissions:
   contents: read
 
+# Do not cancel a run that may already be deploying to Render.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-cd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build-and-test:
@@ -57,3 +58,206 @@ jobs:
           path: target/*.jar
           if-no-files-found: error
           retention-days: 7
+
+  sonar:
+    name: SonarCloud analysis and Quality Gate
+    needs: [build-and-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Make Maven Wrapper executable
+        run: chmod +x mvnw
+
+      # This job runs on its own runner, so it generates its own compiled
+      # classes and JaCoCo report before invoking the SonarCloud scanner.
+      - name: Run unit tests and JaCoCo
+        run: ./mvnw -B -ntp clean test
+
+      - name: Verify JaCoCo XML report
+        run: test -s target/site/jacoco/jacoco.xml
+
+      - name: Analyze with SonarCloud and wait for Quality Gate
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+        run: |
+          test -n "$SONAR_TOKEN" || (echo "Missing SONAR_TOKEN" && exit 1)
+          test -n "$SONAR_ORGANIZATION" || (echo "Missing SONAR_ORGANIZATION" && exit 1)
+          test -n "$SONAR_PROJECT_KEY" || (echo "Missing SONAR_PROJECT_KEY" && exit 1)
+
+          ./mvnw -B -ntp org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.token="$SONAR_TOKEN" \
+            -Dsonar.organization="$SONAR_ORGANIZATION" \
+            -Dsonar.projectKey="$SONAR_PROJECT_KEY" \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+            -Dsonar.qualitygate.wait=true
+
+  codeql:
+    name: CodeQL security analysis
+    needs: [build-and-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Make Maven Wrapper executable
+        run: chmod +x mvnw
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: java-kotlin
+          build-mode: manual
+
+      - name: Build project for CodeQL
+        run: ./mvnw -B -ntp -DskipTests package
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: '/language:java-kotlin'
+
+  dependency-review:
+    name: Dependency Review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+
+  deploy:
+    name: Deploy to Render and verify health
+    needs: [build-and-test, sonar, codeql, dependency-review]
+    if: >-
+      always() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.build-and-test.result == 'success' &&
+      needs.sonar.result == 'success' &&
+      needs.codeql.result == 'success' &&
+      (needs.dependency-review.result == 'success' || needs.dependency-review.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: production
+    concurrency:
+      group: render-evaluation-query-api-production
+      cancel-in-progress: false
+    steps:
+      - name: Validate deployment configuration
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          RENDER_HEALTHCHECK_URL: ${{ vars.RENDER_HEALTHCHECK_URL }}
+        run: |
+          test -n "$RENDER_DEPLOY_HOOK_URL" || (echo "Missing secret RENDER_DEPLOY_HOOK_URL" && exit 1)
+          test -n "$RENDER_API_KEY" || (echo "Missing secret RENDER_API_KEY" && exit 1)
+          test -n "$RENDER_SERVICE_ID" || (echo "Missing variable RENDER_SERVICE_ID" && exit 1)
+          test -n "$RENDER_HEALTHCHECK_URL" || (echo "Missing variable RENDER_HEALTHCHECK_URL" && exit 1)
+
+      - name: Trigger deployment of this exact commit
+        id: trigger
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          response="$(curl --fail-with-body --silent --show-error --get \
+            --data-urlencode "ref=${GITHUB_SHA}" \
+            "$RENDER_DEPLOY_HOOK_URL")"
+          deploy_id="$(echo "$response" | jq -r '.deploy.id // empty')"
+
+          if [ -z "$deploy_id" ]; then
+            echo "::error::Render did not return a deploy ID. A 202 response means another deploy is already in progress; no health check will be treated as proof of this commit."
+            echo "$response"
+            exit 1
+          fi
+
+          echo "deploy_id=$deploy_id" >> "$GITHUB_OUTPUT"
+          echo "Render deployment created: $deploy_id"
+
+      - name: Wait for the requested Render deployment
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          DEPLOY_ID: ${{ steps.trigger.outputs.deploy_id }}
+        run: |
+          for attempt in $(seq 1 180); do
+            response="$(curl --fail-with-body --silent --show-error \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              -H "Accept: application/json" \
+              "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys/$DEPLOY_ID")"
+            status="$(echo "$response" | jq -r '.status // empty')"
+            echo "Render deploy status: ${status:-unknown} (attempt $attempt/180)"
+
+            case "$status" in
+              live)
+                exit 0
+                ;;
+              build_failed|update_failed|pre_deploy_failed|canceled|deactivated)
+                echo "::error::Render deployment finished with status: $status"
+                echo "$response"
+                exit 1
+                ;;
+              created|queued|build_in_progress|update_in_progress|pre_deploy_in_progress)
+                sleep 10
+                ;;
+              *)
+                echo "::error::Unexpected Render deployment status: $status"
+                echo "$response"
+                exit 1
+                ;;
+            esac
+          done
+
+          echo "::error::Timed out waiting for Render deployment to become live."
+          exit 1
+
+      - name: Verify application health
+        env:
+          RENDER_HEALTHCHECK_URL: ${{ vars.RENDER_HEALTHCHECK_URL }}
+        run: |
+          for attempt in $(seq 1 30); do
+            if response="$(curl --fail --silent --show-error "$RENDER_HEALTHCHECK_URL")" &&
+               echo "$response" | jq -e '.status == "UP"' >/dev/null; then
+              echo "Health check passed: $response"
+              exit 0
+            fi
+            echo "Application is not healthy yet (attempt $attempt/30)."
+            sleep 10
+          done
+
+          echo "::error::Application did not become healthy after the Render deployment."
+          exit 1
