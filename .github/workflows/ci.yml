@@ -143,15 +143,33 @@ jobs:
         with:
           category: '/language:java-kotlin'
 
+  dependency-review:
+    name: Dependency Review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+
   deploy:
     name: Deploy to Render and verify health
-    needs: [build-and-test, sonar, codeql]
+    needs: [build-and-test, sonar, codeql, dependency-review]
     if: >-
+      always() &&
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
       needs.build-and-test.result == 'success' &&
       needs.sonar.result == 'success' &&
-      needs.codeql.result == 'success'
+      needs.codeql.result == 'success' &&
+      (needs.dependency-review.result == 'success' || needs.dependency-review.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment: production
