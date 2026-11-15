@@ -119,7 +119,7 @@ class ConsultarHistorialExportacionServiceTest {
     void debePropagarElErrorCuandoUnSolicitanteNoExiste() {
         ConsultarHistorialUseCase consulta = id -> {
             if (id == 20L) {
-                throw new SolicitanteNoEncontradoException(id);
+                throw new SolicitanteNoEncontradoException();
             }
             return List.of();
         };
