@@ -14,12 +14,35 @@ import org.springframework.stereotype.Component;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /** Genera reportes PDF con una presentación visual agrupada por solicitante. */
 @Component
 public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
+
+    @FunctionalInterface
+    interface DocumentoPdfSaver {
+        void guardar(PDDocument documento, OutputStream salida) throws IOException;
+    }
+
+    @FunctionalInterface
+    interface PageStreamOpener {
+        PDPageContentStream abrir(PDDocument documento, PDPage pagina) throws IOException;
+    }
+
+    private final DocumentoPdfSaver documentoSaver;
+    private final PageStreamOpener pageStreamOpener;
+
+    public PdfBoxHistorialAdapter() {
+        this(PDDocument::save, (documento, pagina) -> new PDPageContentStream(documento, pagina));
+    }
+
+    PdfBoxHistorialAdapter(DocumentoPdfSaver documentoSaver, PageStreamOpener pageStreamOpener) {
+        this.documentoSaver = documentoSaver;
+        this.pageStreamOpener = pageStreamOpener;
+    }
 
     private static final float MARGEN_IZQUIERDO = 42;
     private static final float LIMITE_INFERIOR = 48;
@@ -46,7 +69,7 @@ public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
         }
 
         try (PDDocument documento = new PDDocument(); ByteArrayOutputStream salida = new ByteArrayOutputStream()) {
-            EscritorPdf escritor = new EscritorPdf(documento);
+            EscritorPdf escritor = new EscritorPdf(documento, pageStreamOpener);
             escritor.titulo();
 
             for (HistorialSolicitanteExportacion historial : historiales) {
@@ -60,7 +83,7 @@ public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
                 }
             }
 
-            documento.save(salida);
+            documentoSaver.guardar(documento, salida);
             return salida.toByteArray();
         } catch (IOException excepcion) {
             throw new IllegalStateException("No fue posible generar el reporte PDF", excepcion);
@@ -71,12 +94,13 @@ public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
         return valor == null ? "No disponible" : valor.toString();
     }
 
-    private static class EscritorPdf {
+    static class EscritorPdf {
         private final PDDocument documento;
+        private final PageStreamOpener pageStreamOpener;
         private PDPage pagina;
         private float posicionY;
 
-        private String sanitizar(String texto) {
+        String sanitizar(String texto) {
             if (texto == null) {
                 return "No disponible";
             }
@@ -107,8 +131,9 @@ public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
             contenido.endText();
         }
 
-        private EscritorPdf(PDDocument documento) {
+        EscritorPdf(PDDocument documento, PageStreamOpener pageStreamOpener) {
             this.documento = documento;
+            this.pageStreamOpener = pageStreamOpener;
             nuevaPagina(true); // Primera página sin encabezado repetido
             
         }
@@ -239,7 +264,7 @@ public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
             posicionY -= 6;
         }
 
-        private void linea(String texto, boolean negrita, float tamano, Color color) throws IOException {
+        void linea(String texto, boolean negrita, float tamano, Color color) throws IOException {
             String seguro = texto.replaceAll("[\\p{Cntrl}&&[^\\t]]", " ")
                     .replaceAll("[^\\u0020-\\u00FF]", "?");
             for (int inicio = 0; inicio < seguro.length() || inicio == 0; inicio += ANCHO_TEXTO) {
@@ -274,7 +299,7 @@ public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
             pagina = new PDPage(PDRectangle.A4);
             documento.addPage(pagina);
             posicionY = 716;
-            try (PDPageContentStream contenido = new PDPageContentStream(documento, pagina)) {
+            try (PDPageContentStream contenido = pageStreamOpener.abrir(documento, pagina)) {
                 contenido.setNonStrokingColor(AZUL_OSCURO);
                 contenido.addRect(0, 742, ANCHO_PAGINA, 100);
                 contenido.fill();
