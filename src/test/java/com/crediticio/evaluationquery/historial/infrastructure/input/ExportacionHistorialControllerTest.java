@@ -6,6 +6,12 @@ import com.crediticio.evaluationquery.historial.ports.input.ConsultarHistorialEx
 import com.crediticio.evaluationquery.historial.ports.output.exportacion.GeneradorExcelPort;
 import com.crediticio.evaluationquery.historial.ports.output.exportacion.GeneradorPdfPort;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
+import com.crediticio.evaluationquery.shared.exception.GlobalExceptionHandler;
 
 import java.util.List;
 
@@ -13,6 +19,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 class ExportacionHistorialControllerTest {
 
@@ -21,6 +31,18 @@ class ExportacionHistorialControllerTest {
     private final GeneradorExcelPort generadorExcel = mock(GeneradorExcelPort.class);
     private final ExportacionHistorialController controller =
             new ExportacionHistorialController(consulta, generadorPdf, generadorExcel);
+    private MockMvc mockMvc;
+    private LocalValidatorFactoryBean validator;
+
+    @BeforeEach
+    void configurarMockMvc() {
+        validator = new LocalValidatorFactoryBean();
+        validator.afterPropertiesSet();
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .setValidator(validator)
+                .build();
+    }
 
     @Test
     void debeRetornarPdfComoArchivoAdjunto() {
@@ -64,4 +86,69 @@ class ExportacionHistorialControllerTest {
         verify(consulta).consultar(solicitud.solicitanteIds());
         verify(generadorExcel).generar(historiales);
     }
+
+    @Test
+    void debeRechazarUnaListaVaciaAntesDeConsultar() throws Exception {
+        mockMvc.perform(post("/api/v1/evaluaciones/export/pdf")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"solicitanteIds\":[]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+        verify(consulta, never()).consultar(org.mockito.ArgumentMatchers.anyList());
+    }
+
+    @Test
+    void debeRechazarMasDeCincuentaSolicitantes() throws Exception {
+        String ids = java.util.stream.LongStream.rangeClosed(1, 51)
+                .mapToObj(String::valueOf)
+                .collect(java.util.stream.Collectors.joining(","));
+        mockMvc.perform(post("/api/v1/evaluaciones/export/excel")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"solicitanteIds\":[" + ids + "]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+        verify(consulta, never()).consultar(org.mockito.ArgumentMatchers.anyList());
+    }
+
+    @Test
+    void debeRechazarIdentificadoresNulos() throws Exception {
+        mockMvc.perform(post("/api/v1/evaluaciones/export/pdf")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"solicitanteIds\":[101,null]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+        verify(consulta, never()).consultar(org.mockito.ArgumentMatchers.anyList());
+    }
+
+    @Test
+    void debeRechazarIdentificadoresNoPositivos() throws Exception {
+        mockMvc.perform(post("/api/v1/evaluaciones/export/excel")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"solicitanteIds\":[0]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+        verify(consulta, never()).consultar(org.mockito.ArgumentMatchers.anyList());
+    }
+
+    @Test
+    void debeRechazarUnCuerpoJsonMalformado() throws Exception {
+        mockMvc.perform(post("/api/v1/evaluaciones/export/pdf")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{"))
+                .andExpect(status().isBadRequest());
+        verify(consulta, never()).consultar(org.mockito.ArgumentMatchers.anyList());
+    }
+
+    @Test
+    void debeConvertirUnaIllegalArgumentExceptionEnRespuesta400() throws Exception {
+        when(consulta.consultar(List.of(101L)))
+                .thenThrow(new IllegalArgumentException("IDs inválidos"));
+        mockMvc.perform(post("/api/v1/evaluaciones/export/pdf")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"solicitanteIds\":[101]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.message").value("IDs inválidos"));
+    }
+
 }
