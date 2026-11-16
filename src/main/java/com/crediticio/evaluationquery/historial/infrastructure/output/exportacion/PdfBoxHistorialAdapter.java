@@ -48,6 +48,7 @@ public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
         try (PDDocument documento = new PDDocument(); ByteArrayOutputStream salida = new ByteArrayOutputStream()) {
             EscritorPdf escritor = new EscritorPdf(documento);
             escritor.titulo();
+            escritor.linea("", false, 9, TEXTO);
 
             for (HistorialSolicitanteExportacion historial : historiales) {
                 escritor.seccionSolicitante(historial.idSolicitante());
