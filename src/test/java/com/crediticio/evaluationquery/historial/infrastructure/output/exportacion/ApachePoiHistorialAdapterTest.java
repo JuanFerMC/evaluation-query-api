@@ -32,8 +32,8 @@ class ApachePoiHistorialAdapterTest {
             assertThat(hoja.getRow(1).getCell(0).getStringCellValue()).isEqualTo("ID evaluación");
             assertThat(hoja.getRow(2).getCell(0).getNumericCellValue()).isEqualTo(9001);
             assertThat(hoja.getRow(2).getCell(2).getNumericCellValue()).isEqualTo(720);
-            assertThat(hoja.getRow(5).getCell(0).getStringCellValue()).isEqualTo("Solicitante #202");
-            assertThat(hoja.getRow(7).getCell(0).getStringCellValue())
+            assertThat(hoja.getRow(4).getCell(0).getStringCellValue()).isEqualTo("Solicitante #202");
+            assertThat(hoja.getRow(6).getCell(0).getStringCellValue())
                     .isEqualTo("Sin evaluaciones registradas.");
         }
     }
