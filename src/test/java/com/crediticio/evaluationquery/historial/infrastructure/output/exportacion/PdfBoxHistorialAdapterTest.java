@@ -3,9 +3,13 @@ package com.crediticio.evaluationquery.historial.infrastructure.output.exportaci
 import com.crediticio.evaluationquery.historial.application.dto.EvaluacionHistorialResponse;
 import com.crediticio.evaluationquery.historial.application.exportacion.dto.HistorialSolicitanteExportacion;
 import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.junit.jupiter.api.Test;
 
+import java.awt.Color;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.IntStream;
@@ -98,6 +102,65 @@ class PdfBoxHistorialAdapterTest {
             assertThat(documento.getNumberOfPages()).isGreaterThan(1);
             assertThat(texto).contains("CREDIT-COMPASS  |  Historial de evaluaciones");
             assertThat(texto).contains("SOLICITANTE  #30");
+        }
+    }
+
+
+    @Test
+    void debePropagarErrorCuandoFallaElGuardadoDelPdf() {
+        var adaptador = new PdfBoxHistorialAdapter(
+                (documento, salida) -> { throw new IOException("fallo simulado"); },
+                PDPageContentStream::new);
+
+        assertThatThrownBy(() -> adaptador.generar(
+                List.of(new HistorialSolicitanteExportacion(101L, List.of()))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("No fue posible generar el reporte PDF")
+                .hasCauseInstanceOf(IOException.class);
+    }
+
+    @Test
+    void debePropagarErrorCuandoFallaLaCreacionDeUnaPagina() {
+        var adaptador = new PdfBoxHistorialAdapter(
+                PDDocument::save,
+                (documento, pagina) -> { throw new IOException("fallo de pagina simulado"); });
+
+        assertThatThrownBy(() -> adaptador.generar(
+                List.of(new HistorialSolicitanteExportacion(101L, List.of()))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("No fue posible preparar una página del reporte")
+                .hasCauseInstanceOf(IOException.class);
+    }
+
+    @Test
+    void debeSanitizarValoresNulosYCaracteresNoAdmitidos() throws Exception {
+        try (var documento = new PDDocument()) {
+            var escritor = new PdfBoxHistorialAdapter.EscritorPdf(documento, PDPageContentStream::new);
+            assertThat(escritor.sanitizar(null)).isEqualTo("No disponible");
+            assertThat(escritor.sanitizar("texto\ncon\u0001 control")).isEqualTo("texto con  control");
+            assertThat(escritor.sanitizar("riesgo 😀")).isEqualTo("riesgo ?");
+        }
+    }
+
+    @Test
+    void debeProcesarTextoVacioYUsarAmbasVariantesDeFuente() throws Exception {
+        try (var documento = new PDDocument()) {
+            var escritor = new PdfBoxHistorialAdapter.EscritorPdf(documento, PDPageContentStream::new);
+            escritor.linea("", false, 9, Color.BLACK);
+            escritor.linea("Texto normal", false, 9, Color.BLACK);
+            escritor.linea("Texto destacado", true, 9, Color.BLACK);
+            assertThat(documento.getNumberOfPages()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void debeCrearUnaNuevaPaginaAlAgotarseElEspacioDisponible() throws Exception {
+        try (var documento = new PDDocument()) {
+            var escritor = new PdfBoxHistorialAdapter.EscritorPdf(documento, PDPageContentStream::new);
+            for (int i = 0; i < 55; i++) {
+                escritor.linea("Línea de prueba " + i, false, 9, Color.BLACK);
+            }
+            assertThat(documento.getNumberOfPages()).isGreaterThan(1);
         }
     }
 
