@@ -44,9 +44,40 @@ class ApachePoiHistorialAdapterTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void debeRechazarUnaListaDeHistorialesNula() {
+        assertThatThrownBy(() -> adapter.generar(null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void debeRepresentarLosCamposOpcionalesNulosYLaClasificacionNegativa() throws Exception {
+        var historial = List.of(new HistorialSolicitanteExportacion(
+                303L, List.of(evaluacionConDatosOpcionales(9301L))));
+
+        byte[] archivo = adapter.generar(historial);
+
+        try (var libro = WorkbookFactory.create(new ByteArrayInputStream(archivo))) {
+            var hoja = libro.getSheet("Historial de evaluaciones");
+            var fila = hoja.getRow(2);
+
+            assertThat(fila.getCell(4).getStringCellValue()).isEqualTo("No");
+            assertThat(fila.getCell(5).getStringCellValue()).isEqualTo("No disponible");
+            assertThat(fila.getCell(6).getStringCellValue()).isEqualTo("No disponible");
+            assertThat(fila.getCell(7).getStringCellValue()).isEqualTo("No disponible");
+            assertThat(fila.getCell(8).getStringCellValue()).isEqualTo("No disponible");
+            assertThat(fila.getCell(9).getStringCellValue()).isEqualTo("No disponible");
+        }
+    }
+
     private static EvaluacionHistorialResponse evaluacion(long id) {
         return new EvaluacionHistorialResponse(id, LocalDateTime.of(2026, 11, 16, 10, 30),
                 720, "CALCULADO", true, "BAJO_RIESGO", 3, "COMPLETADA",
                 "/evaluaciones/9001/explicacion", "/evaluaciones/9001/recomendaciones");
+    }
+
+    private static EvaluacionHistorialResponse evaluacionConDatosOpcionales(long id) {
+        return new EvaluacionHistorialResponse(id, LocalDateTime.of(2026, 11, 16, 10, 30),
+                0, "DERIVADO_DE_DETALLES", false, null, null, null, null, null);
     }
 }
