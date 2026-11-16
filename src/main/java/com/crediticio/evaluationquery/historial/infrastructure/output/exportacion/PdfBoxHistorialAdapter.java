@@ -89,11 +89,12 @@ public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
         private void linea(String texto, boolean negrita, float tamano) throws IOException {
             String seguro = texto.replaceAll("[\\p{Cntrl}&&[^\\t]]", " ")
                     .replaceAll("[^\\u0020-\\u00FF]", "?");
-            String[] fragmentos = seguro.split("(?<=\\G.{" + ANCHO_TEXTO + "})");
-            for (String fragmento : fragmentos) {
+            for (int inicio = 0; inicio < seguro.length() || inicio == 0; inicio += ANCHO_TEXTO) {
                 if (posicionY < LIMITE_INFERIOR) {
                     nuevaPagina();
                 }
+                int fin = Math.min(inicio + ANCHO_TEXTO, seguro.length());
+                String fragmento = seguro.substring(inicio, fin);
                 try (PDPageContentStream contenido = new PDPageContentStream(
                         documento, pagina, PDPageContentStream.AppendMode.APPEND, true, true)) {
                     contenido.beginText();
@@ -103,6 +104,9 @@ public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
                     contenido.endText();
                 }
                 posicionY -= INTERLINEADO;
+                if (seguro.isEmpty()) {
+                    break;
+                }
             }
         }
 
