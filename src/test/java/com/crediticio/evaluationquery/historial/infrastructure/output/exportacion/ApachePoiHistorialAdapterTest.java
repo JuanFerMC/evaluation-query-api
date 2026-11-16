@@ -32,6 +32,19 @@ class ApachePoiHistorialAdapterTest {
             assertThat(hoja.getRow(1).getCell(0).getStringCellValue()).isEqualTo("ID evaluación");
             assertThat(hoja.getRow(2).getCell(0).getNumericCellValue()).isEqualTo(9001);
             assertThat(hoja.getRow(2).getCell(2).getNumericCellValue()).isEqualTo(720);
+            assertThat(hoja.getRow(2).getCell(3).getStringCellValue()).isEqualTo("CALCULADO");
+            assertThat(hoja.getRow(2).getCell(4).getStringCellValue()).isEqualTo("Sí");
+            assertThat(hoja.getRow(2).getCell(5).getStringCellValue()).isEqualTo("BAJO_RIESGO");
+            assertThat(hoja.getRow(2).getCell(6).getStringCellValue()).isEqualTo("3");
+            assertThat(hoja.getRow(2).getCell(7).getStringCellValue()).isEqualTo("COMPLETADA");
+            assertThat(hoja.getRow(2).getCell(8).getStringCellValue())
+                    .isEqualTo("/evaluaciones/9001/explicacion");
+            assertThat(hoja.getRow(2).getCell(9).getStringCellValue())
+                    .isEqualTo("/evaluaciones/9001/recomendaciones");
+            assertThat(hoja.getPaneInformation().isFreezePane()).isTrue();
+            assertThat(hoja.getColumnWidth(8)).isEqualTo(52 * 256);
+            assertThat(hoja.getRow(1).getCell(0).getCellStyle().getFillForegroundColor())
+                    .isNotEqualTo((short) 0);
             assertThat(hoja.getRow(4).getCell(0).getStringCellValue()).isEqualTo("Solicitante #202");
             assertThat(hoja.getRow(6).getCell(0).getStringCellValue())
                     .isEqualTo("Sin evaluaciones registradas.");
