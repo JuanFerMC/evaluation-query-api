@@ -64,6 +64,22 @@ class PdfBoxHistorialAdapterTest {
         }
     }
 
+    @Test
+    void debeDividirTextosExtensosYContinuarEnUnaNuevaPagina() throws Exception {
+        var evaluacion = new EvaluacionHistorialResponse(
+                9401L, LocalDateTime.of(2026, 11, 16, 10, 30),
+                650, "CALCULADO", true, "RIESGO_MEDIO", 4, "COMPLETADA",
+                "ruta-" + "detalle/".repeat(700), "/recomendaciones/9401");
+        var historiales = List.of(new HistorialSolicitanteExportacion(404L, List.of(evaluacion)));
+
+        byte[] archivo = adapter.generar(historiales);
+
+        try (var documento = Loader.loadPDF(archivo)) {
+            assertThat(documento.getNumberOfPages()).isGreaterThan(1);
+            assertThat(new PDFTextStripper().getText(documento)).contains("Evaluación #9401");
+        }
+    }
+
     private static EvaluacionHistorialResponse evaluacion(long id) {
         return new EvaluacionHistorialResponse(id, LocalDateTime.of(2026, 11, 16, 10, 30),
                 720, "CALCULADO", true, "BAJO_RIESGO", 3, "COMPLETADA",
