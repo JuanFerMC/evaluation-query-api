@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -27,9 +28,9 @@ class PdfBoxHistorialAdapterTest {
         assertThat(archivo).startsWith((byte) '%', (byte) 'P', (byte) 'D', (byte) 'F');
         try (var documento = Loader.loadPDF(archivo)) {
             String texto = new PDFTextStripper().getText(documento);
-            assertThat(texto).contains("Historial de evaluaciones", "Solicitante #101",
-                    "Evaluación #9001", "Puntaje total: 720", "Solicitante #202",
-                    "Sin evaluaciones registradas.");
+            assertThat(texto).contains("Historial de evaluaciones", "CREDIT-COMPASS",
+                    "SOLICITANTE  #101", "Evaluación #9001", "Puntaje total: 720",
+                    "SOLICITANTE  #202", "Este solicitante no tiene evaluaciones registradas.");
         }
     }
 
@@ -39,9 +40,38 @@ class PdfBoxHistorialAdapterTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void debeRechazarUnaListaDeHistorialesNula() {
+        assertThatThrownBy(() -> adapter.generar(null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void debeRepresentarValoresNulosYGenerarVariasPaginas() throws Exception {
+        var evaluaciones = IntStream.rangeClosed(1, 8)
+                .mapToObj(id -> evaluacionConDatosOpcionales(9100L + id))
+                .toList();
+        var historiales = List.of(new HistorialSolicitanteExportacion(303L, evaluaciones));
+
+        byte[] archivo = adapter.generar(historiales);
+
+        try (var documento = Loader.loadPDF(archivo)) {
+            String texto = new PDFTextStripper().getText(documento);
+            assertThat(documento.getNumberOfPages()).isGreaterThan(1);
+            assertThat(texto).contains("Clasificada: No", "Categoría: No disponible",
+                    "Versión de política: No disponible", "Estado: No disponible",
+                    "Ruta de explicación: No disponible", "Ruta de recomendaciones: No disponible");
+        }
+    }
+
     private static EvaluacionHistorialResponse evaluacion(long id) {
         return new EvaluacionHistorialResponse(id, LocalDateTime.of(2026, 11, 16, 10, 30),
                 720, "CALCULADO", true, "BAJO_RIESGO", 3, "COMPLETADA",
                 "/evaluaciones/9001/explicacion", "/evaluaciones/9001/recomendaciones");
+    }
+
+    private static EvaluacionHistorialResponse evaluacionConDatosOpcionales(long id) {
+        return new EvaluacionHistorialResponse(id, LocalDateTime.of(2026, 11, 16, 10, 30),
+                0, "DERIVADO_DE_DETALLES", false, null, null, null, null, null);
     }
 }
