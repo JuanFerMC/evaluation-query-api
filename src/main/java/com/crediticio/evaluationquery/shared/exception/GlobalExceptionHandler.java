@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
@@ -101,6 +102,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IdentificadorInvalidoException.class)
     public ResponseEntity<ApiError> manejarIdentificadorInvalido(IdentificadorInvalidoException ex) {
         log.warn("Solicitud rechazada por un identificador no positivo");
+        return construirRespuesta(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", ex.getMessage());
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiError> manejarValidacionDeSolicitud(MethodArgumentNotValidException ex) {
+        List<String> detalles = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .toList();
+        return ResponseEntity.badRequest().body(
+                new ApiError("VALIDATION_ERROR", "La solicitud contiene datos inválidos",
+                        detalles, MDC.get("traceId")));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiError> manejarSolicitudInvalida(IllegalArgumentException ex) {
         return construirRespuesta(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", ex.getMessage());
     }
 
