@@ -6,6 +6,7 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -81,6 +82,19 @@ class ApachePoiHistorialAdapterTest {
             assertThat(fila.getCell(8).getStringCellValue()).isEqualTo("No disponible");
             assertThat(fila.getCell(9).getStringCellValue()).isEqualTo("No disponible");
         }
+    }
+
+
+    @Test
+    void debePropagarErrorCuandoFallaLaEscrituraDelLibroExcel() {
+        var adaptador = new ApachePoiHistorialAdapter(
+                (libro, salida) -> { throw new IOException("fallo simulado"); });
+
+        assertThatThrownBy(() -> adaptador.generar(
+                List.of(new HistorialSolicitanteExportacion(101L, List.of()))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("No fue posible generar el reporte Excel")
+                .hasCauseInstanceOf(IOException.class);
     }
 
     private static EvaluacionHistorialResponse evaluacion(long id) {
