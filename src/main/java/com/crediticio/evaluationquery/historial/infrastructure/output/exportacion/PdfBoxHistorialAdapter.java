@@ -48,7 +48,6 @@ public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
         try (PDDocument documento = new PDDocument(); ByteArrayOutputStream salida = new ByteArrayOutputStream()) {
             EscritorPdf escritor = new EscritorPdf(documento);
             escritor.titulo();
-            escritor.linea("", false, 9, TEXTO);
 
             for (HistorialSolicitanteExportacion historial : historiales) {
                 escritor.seccionSolicitante(historial.idSolicitante());
@@ -77,9 +76,41 @@ public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
         private PDPage pagina;
         private float posicionY;
 
+        private String sanitizar(String texto) {
+            if (texto == null) {
+                return "No disponible";
+            }
+            return texto.replaceAll("[\\p{Cntrl}&&[^\\t]]", " ")
+                    .replaceAll("[^\\u0020-\\u00FF]", "?");
+        }
+
+        private void campoEn(PDPageContentStream contenido, float x, float y,
+                             String etiqueta, String valorTexto) throws IOException {
+            String etiquetaLimpia = sanitizar(etiqueta);
+            String valorLimpio = sanitizar(valorTexto);
+            float tamano = 9f;
+
+            contenido.beginText();
+            contenido.setNonStrokingColor(AZUL_OSCURO);
+            contenido.setFont(FUENTE_NEGRITA, tamano);
+            contenido.newLineAtOffset(x, y);
+            contenido.showText(etiquetaLimpia);
+            contenido.endText();
+
+            float anchoEtiqueta = (FUENTE_NEGRITA.getStringWidth(etiquetaLimpia) / 1000f) * tamano;
+
+            contenido.beginText();
+            contenido.setNonStrokingColor(TEXTO);
+            contenido.setFont(FUENTE, tamano);
+            contenido.newLineAtOffset(x + anchoEtiqueta + 4, y);
+            contenido.showText(valorLimpio);
+            contenido.endText();
+        }
+
         private EscritorPdf(PDDocument documento) {
             this.documento = documento;
-            nuevaPagina();
+            nuevaPagina(true); // Primera página sin encabezado repetido
+            
         }
 
         private void titulo() throws IOException {
@@ -88,29 +119,33 @@ public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
                 contenido.beginText();
                 contenido.setNonStrokingColor(Color.WHITE);
                 contenido.setFont(FUENTE_NEGRITA, 21);
-                contenido.newLineAtOffset(MARGEN_IZQUIERDO, 800);
+                contenido.newLineAtOffset(MARGEN_IZQUIERDO, 796);
                 contenido.showText("Historial de evaluaciones");
                 contenido.endText();
 
                 contenido.beginText();
                 contenido.setNonStrokingColor(new Color(220, 232, 242));
                 contenido.setFont(FUENTE, 10);
-                contenido.newLineAtOffset(MARGEN_IZQUIERDO, 780);
+                contenido.newLineAtOffset(MARGEN_IZQUIERDO, 774);
                 contenido.showText("CREDIT-COMPASS  |  Reporte de evaluaciones");
                 contenido.endText();
             }
-            posicionY = 716;
+            posicionY = 710;
         }
 
         private void seccionSolicitante(long idSolicitante) throws IOException {
-            asegurarEspacio(42);
+            // Añadir separación superior si no estamos al inicio de la página
+            if (posicionY < 700) {
+                posicionY -= 16; 
+            }
+            asegurarEspacio(46);
             try (PDPageContentStream contenido = new PDPageContentStream(
                     documento, pagina, PDPageContentStream.AppendMode.APPEND, true, true)) {
                 contenido.setNonStrokingColor(AZUL_CLARO);
-                contenido.addRect(MARGEN_IZQUIERDO, posicionY - 27, ANCHO_PAGINA - 84, 28);
+                contenido.addRect(MARGEN_IZQUIERDO, posicionY - 28, ANCHO_PAGINA - 84, 28);
                 contenido.fill();
                 contenido.setNonStrokingColor(ACENTO);
-                contenido.addRect(MARGEN_IZQUIERDO, posicionY - 27, 4, 28);
+                contenido.addRect(MARGEN_IZQUIERDO, posicionY - 28, 4, 28);
                 contenido.fill();
                 contenido.beginText();
                 contenido.setNonStrokingColor(AZUL_OSCURO);
@@ -119,41 +154,89 @@ public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
                 contenido.showText("SOLICITANTE  #" + idSolicitante);
                 contenido.endText();
             }
-            posicionY -= 42;
+            // Dejar espacio debajo de la barra del solicitante antes de la tarjeta
+            posicionY -= 38; 
         }
 
         private void tarjetaEvaluacion(EvaluacionHistorialResponse evaluacion) throws IOException {
-            asegurarEspacio(174);
+            float altoTarjeta = 112;
+            asegurarEspacio(altoTarjeta + 12);
+
+            float techoTarjeta = posicionY;
+            float baseTarjeta = techoTarjeta - altoTarjeta;
+            float anchoTarjeta = ANCHO_PAGINA - (MARGEN_IZQUIERDO * 2);
+            
+            float colIzq = MARGEN_IZQUIERDO + 12;
+            // Posición fija para la columna derecha: alinea Fecha, Origen, Categoría y Estado
+            float colDer = (MARGEN_IZQUIERDO + anchoTarjeta - 12) - 145;
+
             try (PDPageContentStream contenido = new PDPageContentStream(
                     documento, pagina, PDPageContentStream.AppendMode.APPEND, true, true)) {
+
+                // Fondo y borde de la tarjeta
                 contenido.setNonStrokingColor(FONDO_TARJETA);
-                contenido.addRect(MARGEN_IZQUIERDO, posicionY - 158, ANCHO_PAGINA - 84, 158);
+                contenido.addRect(MARGEN_IZQUIERDO, baseTarjeta, anchoTarjeta, altoTarjeta);
                 contenido.fill();
+
                 contenido.setStrokingColor(BORDE);
-                contenido.addRect(MARGEN_IZQUIERDO, posicionY - 158, ANCHO_PAGINA - 84, 158);
+                contenido.addRect(MARGEN_IZQUIERDO, baseTarjeta, anchoTarjeta, altoTarjeta);
                 contenido.stroke();
+
+                // Barra de acento izquierda
                 contenido.setNonStrokingColor(ACENTO);
-                contenido.addRect(MARGEN_IZQUIERDO, posicionY - 158, 3, 158);
+                contenido.addRect(MARGEN_IZQUIERDO, baseTarjeta, 3, altoTarjeta);
                 contenido.fill();
+
+                // Línea divisoria de cabecera
+                contenido.setStrokingColor(BORDE);
+                contenido.moveTo(colIzq, techoTarjeta - 26);
+                contenido.lineTo(MARGEN_IZQUIERDO + anchoTarjeta - 12, techoTarjeta - 26);
+                contenido.stroke();
+
+                // --- CABECERA: Título a la izquierda y Fecha alineada con la columna derecha ---
+                float yCabecera = techoTarjeta - 18;
+                contenido.beginText();
+                contenido.setNonStrokingColor(AZUL_OSCURO);
+                contenido.setFont(FUENTE_NEGRITA, 11);
+                contenido.newLineAtOffset(colIzq, yCabecera);
+                contenido.showText("Evaluación #" + evaluacion.idEvaluacion());
+                contenido.endText();
+
+                String fechaTexto = FORMATO_FECHA.format(evaluacion.fechaEvaluacion());
+                campoEn(contenido, colDer, yCabecera, "Fecha:", fechaTexto);
+
+                // --- CUERPO EN 2 COLUMNAS PERFECTAMENTE ALINEADAS ---
+                float yFila = techoTarjeta - 41;
+
+                // Fila 1
+                campoEn(contenido, colIzq, yFila, "Puntaje total:", String.valueOf(evaluacion.scoreTotal()));
+                campoEn(contenido, colDer, yFila, "Origen:", valor(evaluacion.origenPuntaje()));
+                yFila -= 15;
+
+                // Fila 2
+                campoEn(contenido, colIzq, yFila, "Clasificada:", evaluacion.clasificada() ? "Sí" : "No");
+                campoEn(contenido, colDer, yFila, "Categoría:", valor(evaluacion.categoria()));
+                yFila -= 15;
+
+                // Fila 3
+                campoEn(contenido, colIzq, yFila, "Versión de política:", valor(evaluacion.versionPolitica()));
+                campoEn(contenido, colDer, yFila, "Estado:", valor(evaluacion.estado()));
+                yFila -= 17;
+
+                // --- RUTAS (ANCHO COMPLETO) ---
+                campoEn(contenido, colIzq, yFila, "Ruta de explicación:", valor(evaluacion.explicacion()));
+                yFila -= 14;
+                campoEn(contenido, colIzq, yFila, "Ruta de recomendaciones:", valor(evaluacion.recomendaciones()));
             }
 
-            linea("Evaluación #" + evaluacion.idEvaluacion(), true, 11, AZUL_OSCURO);
-            linea("Fecha: " + FORMATO_FECHA.format(evaluacion.fechaEvaluacion()), false, 9, TEXTO);
-            linea("Puntaje total: " + evaluacion.scoreTotal()
-                    + "    |    Origen: " + valor(evaluacion.origenPuntaje()), false, 9, TEXTO);
-            linea("Clasificada: " + (evaluacion.clasificada() ? "Sí" : "No")
-                    + "    |    Categoría: " + valor(evaluacion.categoria()), false, 9, TEXTO);
-            linea("Versión de política: " + valor(evaluacion.versionPolitica())
-                    + "    |    Estado: " + valor(evaluacion.estado()), false, 9, TEXTO);
-            linea("Ruta de explicación: " + valor(evaluacion.explicacion()), false, 9, TEXTO);
-            linea("Ruta de recomendaciones: " + valor(evaluacion.recomendaciones()), false, 9, TEXTO);
-            posicionY -= 13;
+            posicionY = baseTarjeta - 12;
         }
-
+                
         private void mensaje(String texto) throws IOException {
-            asegurarEspacio(35);
+            asegurarEspacio(32);
+            posicionY -= 4;
             linea(texto, false, 9, TEXTO);
-            posicionY -= 8;
+            posicionY -= 6;
         }
 
         private void linea(String texto, boolean negrita, float tamano, Color color) throws IOException {
@@ -161,7 +244,7 @@ public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
                     .replaceAll("[^\\u0020-\\u00FF]", "?");
             for (int inicio = 0; inicio < seguro.length() || inicio == 0; inicio += ANCHO_TEXTO) {
                 if (posicionY < LIMITE_INFERIOR) {
-                    nuevaPagina();
+                    nuevaPagina(false);
                 }
                 int fin = Math.min(inicio + ANCHO_TEXTO, seguro.length());
                 String fragmento = seguro.substring(inicio, fin);
@@ -183,11 +266,11 @@ public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
 
         private void asegurarEspacio(float requerido) {
             if (posicionY - requerido < LIMITE_INFERIOR) {
-                nuevaPagina();
+                nuevaPagina(false);
             }
         }
 
-        private void nuevaPagina() {
+        private void nuevaPagina(boolean esPrimeraPagina) {
             pagina = new PDPage(PDRectangle.A4);
             documento.addPage(pagina);
             posicionY = 716;
@@ -198,12 +281,15 @@ public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
                 contenido.setNonStrokingColor(ACENTO);
                 contenido.addRect(0, 738, ANCHO_PAGINA, 4);
                 contenido.fill();
-                contenido.beginText();
-                contenido.setNonStrokingColor(Color.WHITE);
-                contenido.setFont(FUENTE_NEGRITA, 12);
-                contenido.newLineAtOffset(MARGEN_IZQUIERDO, 790);
-                contenido.showText("CREDIT-COMPASS  |  Historial de evaluaciones");
-                contenido.endText();
+
+                if (!esPrimeraPagina) {
+                    contenido.beginText();
+                    contenido.setNonStrokingColor(Color.WHITE);
+                    contenido.setFont(FUENTE_NEGRITA, 12);
+                    contenido.newLineAtOffset(MARGEN_IZQUIERDO, 790);
+                    contenido.showText("CREDIT-COMPASS  |  Historial de evaluaciones");
+                    contenido.endText();
+                }
             } catch (IOException excepcion) {
                 throw new IllegalStateException("No fue posible preparar una página del reporte", excepcion);
             }
