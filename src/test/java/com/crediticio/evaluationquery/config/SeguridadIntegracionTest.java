@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -26,6 +27,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -199,4 +201,39 @@ class SeguridadIntegracionTest {
                         result.getResponse().getHeader(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS).split(",\\s*")))
                         .contains("X-Trace-Id"));
     }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "/api/v1/evaluaciones/export/pdf",
+            "/api/v1/evaluaciones/export/excel"
+    })
+    void exportacionesDebenAutorizarAmbosRolesYRechazarOtros(String ruta) throws Exception {
+        for (String rol : List.of(JwtConfig.ROL_ADMINISTRADOR, JwtConfig.ROL_ANALISTA)) {
+            mockMvc.perform(post(ruta)
+                            .header(HttpHeaders.AUTHORIZATION, bearer(rol))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"solicitanteIds\":[]}"))
+                    .andExpect(status().isBadRequest());
+        }
+
+        mockMvc.perform(post(ruta)
+                        .header(HttpHeaders.AUTHORIZATION, bearer("AUDITOR"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"solicitanteIds\":[]}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("ACCESO_DENEGADO"));
+    }
+
+    @Test
+    void preflightDeExportacionDebePermitirPostDesdeOrigenConfigurado() throws Exception {
+        mockMvc.perform(options("/api/v1/evaluaciones/export/pdf")
+                        .header(HttpHeaders.ORIGIN, "http://localhost:3000")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "Authorization,Content-Type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:3000"))
+                .andExpect(result -> assertThat(result.getResponse()
+                        .getHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS)).contains("POST"));
+    }
+
 }
