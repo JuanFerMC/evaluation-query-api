@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
@@ -113,6 +114,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(
                 new ApiError("VALIDATION_ERROR", "La solicitud contiene datos inválidos",
                         detalles, MDC.get("traceId")));
+    }
+
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiError> manejarCuerpoDeSolicitudIlegible(HttpMessageNotReadableException ex) {
+        log.warn("Solicitud rechazada por un cuerpo JSON inválido");
+        return construirRespuesta(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR",
+                "El cuerpo de la solicitud tiene un formato inválido");
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
