@@ -46,6 +46,8 @@ las respuestas llevan `X-Trace-Id` (se reutiliza el recibido si es un UUID váli
 | `GET /api/v1/evaluaciones/{idEvaluacion}/explicacion` | 200 explicación; 400 `VALIDATION_ERROR`; 401 `NO_AUTENTICADO`; 403 `ACCESO_DENEGADO`; 404 `EVALUACION_NO_ENCONTRADA`; 409 `EVALUACION_PENDIENTE`; 500 `INTERNAL_ERROR` si los datos persistidos son incoherentes |
 | `GET /api/v1/evaluaciones/{idEvaluacion}/recomendaciones` | 200 recomendaciones; 400; 401; 403; 404 `EVALUACION_NO_ENCONTRADA`; 409 `EVALUACION_PENDIENTE` |
 | `GET /api/v1/solicitantes/{idSolicitante}/evaluaciones` | 200 lista (vacía si no tiene evaluaciones); 400; 401; 403; 404 `SOLICITANTE_NO_ENCONTRADO` |
+| `POST /api/v1/evaluaciones/export/pdf` | 200 archivo PDF (`application/pdf`); 400 `VALIDATION_ERROR`; 401 `NO_AUTENTICADO`; 403 `ACCESO_DENEGADO`; 404 `SOLICITANTE_NO_ENCONTRADO`; 500 `INTERNAL_ERROR` |
+| `POST /api/v1/evaluaciones/export/excel` | 200 archivo XLSX (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`); 400 `VALIDATION_ERROR`; 401 `NO_AUTENTICADO`; 403 `ACCESO_DENEGADO`; 404 `SOLICITANTE_NO_ENCONTRADO`; 500 `INTERNAL_ERROR` |
 | `PUT /internal/v1/evaluaciones/{idEvaluacion}/recomendaciones` | **Interna**: solo existe con la saga habilitada y solo la autoriza el token de servicio S1 (ningún token de usuario). Acepta el snapshot JSON de Scoring; lo inserta o verifica sin sobrescribirlo y genera desde ese contenido en una transacción local. Durante el despliegue escalonado aún acepta el cuerpo vacío para instancias antiguas de Scoring. 201 generada; 200 ya existía (reintento); 401; 404; 409 por snapshot inconsistente o evaluación no pendiente; 503 `CATALOGO_NO_DISPONIBLE`. No forma parte del contrato del frontend ni aparece en Swagger |
 | `PUT /internal/v1/proyeccion/solicitantes/{idSolicitante}` | **Interna**: token S1 con `proyeccion:actualizar`; 204 (también si ya existía); 400; 401; 403. No forma parte del contrato del frontend |
 | `PUT /internal/v1/proyeccion/evaluaciones/{idEvaluacion}/completada` | **Interna**: token S1 con `proyeccion:actualizar`; 204 (actualizada o ya completada); 400; 401; 403; 404 si todavía no se ha proyectado; 409 si el estado histórico es incompatible. No forma parte del contrato del frontend |
@@ -95,6 +97,62 @@ y lista vacía (P-HU14-04). Selección (P-HU14-02, confirmada): una recomendaci�
 por cada variable con algún factor desfavorable (condición cumplida con contribución negativa); primero la de
 categoría y después las variables en orden alfabético; ante varias entradas para el mismo criterio, la de
 código menor.
+
+## Exportación de historiales (US 5.2)
+
+Los dos endpoints de exportación reciben un arreglo de identificadores de solicitante y devuelven el documento directamente en la respuesta HTTP. Un arreglo con un solo identificador permite exportar el historial individual; varios identificadores producen un reporte agrupado por solicitante.
+
+### PDF
+
+`POST /api/v1/evaluaciones/export/pdf`
+
+### Excel
+
+`POST /api/v1/evaluaciones/export/excel`
+
+Ambos reciben `Content-Type: application/json` y requieren un JWT de acceso con rol `ADMINISTRADOR_RIESGO` o `ANALISTA_CREDITO`:
+
+```http
+Authorization: Bearer <token>
+Content-Type: application/json
+Accept: application/pdf
+```
+
+Cuerpo de ejemplo:
+
+```json
+{
+  "solicitanteIds": [101, 102, 103]
+}
+```
+
+Para Excel, usar como `Accept` el MIME type `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
+
+### Validaciones y respuestas
+
+- Se aceptan entre 1 y 50 identificadores por solicitud.
+- Los identificadores deben ser positivos, no nulos y no repetidos.
+- Si algún solicitante no existe, la solicitud completa falla con 404; no se genera un reporte parcial.
+- Un JSON malformado o una solicitud que incumpla las validaciones responde 400 con el formato común `{errorCode, message, details, traceId}`.
+- La respuesta exitosa contiene los bytes del documento, `Content-Disposition: attachment` y el MIME type correspondiente. El nombre de descarga es `historial-evaluaciones.pdf` o `historial-evaluaciones.xlsx`.
+- La API genera el archivo en memoria y no requiere que el cliente conozca una ruta del servidor. El navegador o cliente HTTP decide dónde guardar la descarga.
+
+Ejemplo con curl para PDF (añadir el token real en el entorno local):
+
+```bash
+curl -X POST "http://localhost:8082/api/v1/evaluaciones/export/pdf" \\
+  -H "Authorization: Bearer $TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -H "Accept: application/pdf" \\
+  --data '{"solicitanteIds":[101,102]}' \\
+  --output historial-evaluaciones.pdf
+```
+
+Para Excel, sustituir la ruta por `/excel`, el encabezado `Accept` por el MIME type XLSX y el archivo de salida por `historial-evaluaciones.xlsx`.
+
+La especificación OpenAPI disponible en el perfil `dev` también documenta las operaciones.
+
+---
 
 Historial (HU15), de la más reciente a la más antigua y, a igual fecha, por identificador descendente. Excluye
 las evaluaciones PENDIENTE (CA08); `estado` es `COMPLETADA` o `null` (anterior a la saga):
