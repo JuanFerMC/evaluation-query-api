@@ -87,7 +87,7 @@ public class ApachePoiHistorialAdapter implements GeneradorExcelPort {
         fila.createCell(columna++).setCellValue(evaluacion.clasificada() ? "Sí" : "No");
         fila.createCell(columna++).setCellValue(valor(evaluacion.categoria()));
         fila.createCell(columna++).setCellValue(evaluacion.versionPolitica() == null
-                ? "No disponible" : evaluacion.versionPolitica());
+                ? "No disponible" : evaluacion.versionPolitica().toString());
         fila.createCell(columna++).setCellValue(valor(evaluacion.estado()));
         fila.createCell(columna++).setCellValue(valor(evaluacion.explicacion()));
         fila.createCell(columna).setCellValue(valor(evaluacion.recomendaciones()));
