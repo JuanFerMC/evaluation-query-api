@@ -29,7 +29,10 @@ class PdfBoxHistorialAdapterTest {
         try (var documento = Loader.loadPDF(archivo)) {
             String texto = new PDFTextStripper().getText(documento);
             assertThat(texto).contains("Historial de evaluaciones", "CREDIT-COMPASS",
-                    "SOLICITANTE  #101", "Evaluación #9001", "Puntaje total: 720",
+                    "SOLICITANTE  #101", "Evaluación #9001", "Fecha: 16/11/2026 10:30",
+                    "Puntaje total: 720", "Origen: CALCULADO", "Clasificada: Sí",
+                    "Categoría: BAJO_RIESGO", "Versión de política: 3", "Estado: COMPLETADA",
+                    "Ruta de explicación:", "Ruta de recomendaciones:",
                     "SOLICITANTE  #202", "Este solicitante no tiene evaluaciones registradas.");
         }
     }
@@ -65,7 +68,7 @@ class PdfBoxHistorialAdapterTest {
     }
 
     @Test
-    void debeDividirTextosExtensosYContinuarEnUnaNuevaPagina() throws Exception {
+    void debeGenerarDocumentoLegibleCuandoLasRutasSonExtensas() throws Exception {
         var evaluacion = new EvaluacionHistorialResponse(
                 9401L, LocalDateTime.of(2026, 11, 16, 10, 30),
                 650, "CALCULADO", true, "RIESGO_MEDIO", 4, "COMPLETADA",
@@ -75,8 +78,25 @@ class PdfBoxHistorialAdapterTest {
         byte[] archivo = adapter.generar(historiales);
 
         try (var documento = Loader.loadPDF(archivo)) {
+            assertThat(documento.getNumberOfPages()).isEqualTo(1);
+            assertThat(new PDFTextStripper().getText(documento))
+                    .contains("Evaluación #9401", "Ruta de explicación:");
+        }
+    }
+
+    @Test
+    void debeRepetirElEncabezadoVisualAlCrearPaginasAdicionales() throws Exception {
+        var historiales = IntStream.rangeClosed(1, 30)
+                .mapToObj(id -> new HistorialSolicitanteExportacion(id, List.of()))
+                .toList();
+
+        byte[] archivo = adapter.generar(historiales);
+
+        try (var documento = Loader.loadPDF(archivo)) {
+            String texto = new PDFTextStripper().getText(documento);
             assertThat(documento.getNumberOfPages()).isGreaterThan(1);
-            assertThat(new PDFTextStripper().getText(documento)).contains("Evaluación #9401");
+            assertThat(texto).contains("CREDIT-COMPASS  |  Historial de evaluaciones");
+            assertThat(texto).contains("SOLICITANTE  #30");
         }
     }
 
