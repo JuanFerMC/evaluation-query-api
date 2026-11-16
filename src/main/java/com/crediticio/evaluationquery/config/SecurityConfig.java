@@ -56,6 +56,8 @@ public class SecurityConfig {
                                 .hasAnyRole(JwtConfig.ROL_ADMINISTRADOR, JwtConfig.ROL_ANALISTA)
                         .requestMatchers(HttpMethod.GET, "/api/v1/solicitantes/*/evaluaciones")
                                 .hasAnyRole(JwtConfig.ROL_ADMINISTRADOR, JwtConfig.ROL_ANALISTA)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/evaluaciones/export/**")
+                                .hasAnyRole(JwtConfig.ROL_ADMINISTRADOR, JwtConfig.ROL_ANALISTA)
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         .requestMatchers(RUTAS_SWAGGER).access((autenticacion, contexto) ->
                                 new AuthorizationDecision(swaggerHabilitado))
@@ -78,7 +80,7 @@ public class SecurityConfig {
                 .map(String::trim)
                 .filter(origin -> !origin.isBlank())
                 .toList());
-        configuration.setAllowedMethods(List.of("GET", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Content-Type", "Accept", "Authorization", "X-Trace-Id"));
         configuration.setExposedHeaders(List.of("X-Trace-Id"));
         // La API no utiliza cookies de autenticación ni credenciales automáticas del navegador.
