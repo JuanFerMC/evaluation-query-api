@@ -15,12 +15,28 @@ import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /** Genera un libro XLSX con una sección independiente para cada solicitante. */
 @Component
 public class ApachePoiHistorialAdapter implements GeneradorExcelPort {
+
+    @FunctionalInterface
+    interface WorkbookSaver {
+        void guardar(XSSFWorkbook libro, OutputStream salida) throws IOException;
+    }
+
+    private final WorkbookSaver workbookSaver;
+
+    public ApachePoiHistorialAdapter() {
+        this((libro, salida) -> libro.write(salida));
+    }
+
+    ApachePoiHistorialAdapter(WorkbookSaver workbookSaver) {
+        this.workbookSaver = workbookSaver;
+    }
 
     private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private static final String[] ENCABEZADOS = {
@@ -71,7 +87,7 @@ public class ApachePoiHistorialAdapter implements GeneradorExcelPort {
             for (int columna = 0; columna < ENCABEZADOS.length; columna++) {
                 hoja.setColumnWidth(columna, columna == 8 || columna == 9 ? 52 * 256 : 22 * 256);
             }
-            libro.write(salida);
+            workbookSaver.guardar(libro, salida);
             return salida.toByteArray();
         } catch (IOException excepcion) {
             throw new IllegalStateException("No fue posible generar el reporte Excel", excepcion);
