@@ -26,8 +26,8 @@ public class ReportesController {
             description = "Cantidad y porcentaje (dos decimales) de evaluaciones BAJO, MEDIO y ALTO, y el total "
                     + "consolidado (suma de las tres). Cada evaluación cuenta una vez: un solicitante con varias "
                     + "evaluaciones aporta una por cada una. Las evaluaciones sin clasificación (anteriores a HU12) "
-                    + "se informan aparte y no entran en el total. Se calcula en cada consulta. Roles: "
-                    + "ADMINISTRADOR_RIESGO y ANALISTA_CREDITO.")
+                    + "se informan aparte y no entran en el total. Se calcula en cada consulta. Rol: "
+                    + "ANALISTA_CREDITO.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Distribución (todo en 0 si no hay evaluaciones)",
                     content = @Content(schema = @Schema(implementation = DistribucionRiesgoResponse.class))),
