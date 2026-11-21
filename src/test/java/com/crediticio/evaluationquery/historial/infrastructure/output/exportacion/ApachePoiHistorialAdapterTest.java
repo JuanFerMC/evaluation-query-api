@@ -20,8 +20,8 @@ class ApachePoiHistorialAdapterTest {
     @Test
     void debeGenerarExcelConSeccionesPorSolicitanteYDatosDeEvaluacion() throws Exception {
         var historiales = List.of(
-                new HistorialSolicitanteExportacion(101L, "Solicitante 101L", List.of(evaluacion(9001L))),
-                new HistorialSolicitanteExportacion(202L, "Solicitante 202L", List.of()));
+                new HistorialSolicitanteExportacion(101L, "Solicitante 101", List.of(evaluacion(9001L))),
+                new HistorialSolicitanteExportacion(202L, "Solicitante 202", List.of()));
 
         byte[] archivo = adapter.generar(historiales);
 
@@ -67,7 +67,7 @@ class ApachePoiHistorialAdapterTest {
     @Test
     void debeRepresentarLosCamposOpcionalesNulosYLaClasificacionNegativa() throws Exception {
         var historial = List.of(new HistorialSolicitanteExportacion(
-                303L, List.of(evaluacionConDatosOpcionales(9301L))));
+                303L, "Solicitante 303", List.of(evaluacionConDatosOpcionales(9301L))));
 
         byte[] archivo = adapter.generar(historial);
 
