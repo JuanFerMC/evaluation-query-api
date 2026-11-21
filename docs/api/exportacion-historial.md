@@ -7,7 +7,7 @@
 | PDF | `POST /api/v1/evaluaciones/export/pdf` | `application/pdf` |
 | Excel | `POST /api/v1/evaluaciones/export/excel` | `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` |
 
-Ambas operaciones requieren autenticación mediante JWT Bearer emitido por `auth-api`. Los roles autorizados son `ADMINISTRADOR_RIESGO` y `ANALISTA_CREDITO`.
+Ambas operaciones requieren autenticación mediante JWT Bearer emitido por `auth-api`. El único rol autorizado es `ANALISTA_CREDITO`. Los administradores y demás roles reciben `403 ACCESO_DENEGADO`.
 
 ## Solicitud
 
@@ -29,7 +29,7 @@ Cuerpo:
 }
 ```
 
-El arreglo admite de 1 a 50 identificadores. Un solo ID equivale a exportar el historial de un solicitante; varios IDs producen un único documento con secciones agrupadas por solicitante.
+El arreglo admite de 1 a 50 identificadores. Un solo ID equivale a exportar el historial de un solicitante; varios IDs producen un único documento con secciones agrupadas por solicitante. Cada sección identifica al solicitante por su nombre completo y conserva su ID; en el PDF, el ID aparece explícitamente en la tarjeta del solicitante.
 
 ### Reglas de validación
 
@@ -107,5 +107,5 @@ El frontend debe enviar el JWT en `Authorization`, serializar los IDs selecciona
 
 - La exportación reutiliza el caso de uso de consulta de historial y los puertos de generación PDF/Excel.
 - Las evaluaciones en estado `PENDIENTE` se excluyen conforme a las reglas del historial.
-- No se envían al documento datos personales ni financieros del solicitante que no formen parte del DTO de historial.
+- Los reportes incluyen únicamente el nombre completo y el identificador del solicitante para identificar cada sección; no incorporan otros datos personales ni financieros.
 - La documentación interactiva OpenAPI/Swagger se encuentra habilitada únicamente en el perfil `dev`, de acuerdo con la configuración de la API.
