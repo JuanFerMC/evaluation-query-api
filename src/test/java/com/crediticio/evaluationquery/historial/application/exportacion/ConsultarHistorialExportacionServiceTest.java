@@ -70,7 +70,7 @@ class ConsultarHistorialExportacionServiceTest {
 
     @Test
     void debeRechazarUnaListaVacia() {
-        var servicio = new ConsultarHistorialExportacionService(id -> List.of());
+        var servicio = new ConsultarHistorialExportacionService(id -> List.of(), id -> "Solicitante " + id);
 
         assertThatThrownBy(() -> servicio.consultar(List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -79,7 +79,7 @@ class ConsultarHistorialExportacionServiceTest {
 
     @Test
     void debeRechazarMasDeCincuentaSolicitantes() {
-        var servicio = new ConsultarHistorialExportacionService(id -> List.of());
+        var servicio = new ConsultarHistorialExportacionService(id -> List.of(), id -> "Solicitante " + id);
         List<Long> ids = new ArrayList<>();
         for (long id = 1; id <= 51; id++) {
             ids.add(id);
@@ -92,7 +92,7 @@ class ConsultarHistorialExportacionServiceTest {
 
     @Test
     void debeRechazarIdentificadoresNulos() {
-        var servicio = new ConsultarHistorialExportacionService(id -> List.of());
+        var servicio = new ConsultarHistorialExportacionService(id -> List.of(), id -> "Solicitante " + id);
 
         assertThatThrownBy(() -> servicio.consultar(Arrays.asList(10L, null)))
                 .isInstanceOf(IdentificadorInvalidoException.class)
@@ -101,7 +101,7 @@ class ConsultarHistorialExportacionServiceTest {
 
     @Test
     void debeRechazarIdentificadoresCeroONegativos() {
-        var servicio = new ConsultarHistorialExportacionService(id -> List.of());
+        var servicio = new ConsultarHistorialExportacionService(id -> List.of(), id -> "Solicitante " + id);
 
         assertThatThrownBy(() -> servicio.consultar(List.of(0L)))
                 .isInstanceOf(IdentificadorInvalidoException.class);
@@ -111,7 +111,7 @@ class ConsultarHistorialExportacionServiceTest {
 
     @Test
     void debeRechazarIdentificadoresDuplicados() {
-        var servicio = new ConsultarHistorialExportacionService(id -> List.of());
+        var servicio = new ConsultarHistorialExportacionService(id -> List.of(), id -> "Solicitante " + id);
 
         assertThatThrownBy(() -> servicio.consultar(List.of(10L, 20L, 10L)))
                 .isInstanceOf(IllegalArgumentException.class)
