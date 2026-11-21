@@ -5,6 +5,9 @@ import com.crediticio.evaluationquery.explicacion.domain.FactorAplicado;
 import com.crediticio.evaluationquery.explicacion.domain.OrigenPuntaje;
 import com.crediticio.evaluationquery.explicacion.infrastructure.output.ExplicacionEvaluacionJdbcAdapter;
 import com.crediticio.evaluationquery.historial.domain.EvaluacionHistorica;
+import com.crediticio.evaluationquery.historial.domain.FiltroHistorial;
+import com.crediticio.evaluationquery.historial.domain.Paginacion;
+import com.crediticio.evaluationquery.historial.infrastructure.output.BusquedaHistorialJdbcAdapter;
 import com.crediticio.evaluationquery.historial.infrastructure.output.HistorialEvaluacionesJdbcAdapter;
 import com.crediticio.evaluationquery.recomendaciones.domain.EvaluacionParaRecomendar;
 import com.crediticio.evaluationquery.recomendaciones.domain.FactorEvaluado;
@@ -89,6 +92,7 @@ class EsquemaScoringContratoIT {
     private static TransactionTemplate soloLectura;
     private static ExplicacionEvaluacionJdbcAdapter explicacionAdapter;
     private static HistorialEvaluacionesJdbcAdapter historialAdapter;
+    private static BusquedaHistorialJdbcAdapter busquedaAdapter;
     private static EvaluacionParaRecomendarJdbcAdapter evaluacionParaRecomendarAdapter;
     private static RecomendacionesJdbcAdapter recomendacionesAdapter;
 
@@ -129,6 +133,7 @@ class EsquemaScoringContratoIT {
         NamedParameterJdbcTemplate consultas = new NamedParameterJdbcTemplate(dataSource);
         explicacionAdapter = new ExplicacionEvaluacionJdbcAdapter(consultas);
         historialAdapter = new HistorialEvaluacionesJdbcAdapter(consultas);
+        busquedaAdapter = new BusquedaHistorialJdbcAdapter(consultas);
         evaluacionParaRecomendarAdapter = new EvaluacionParaRecomendarJdbcAdapter(consultas);
         recomendacionesAdapter = new RecomendacionesJdbcAdapter(consultas, ESQUEMA);
         DatosScoringPrueba datos = new DatosScoringPrueba(jdbcTemplate);
@@ -260,6 +265,32 @@ class EsquemaScoringContratoIT {
         assertThat(enSoloLectura(() -> historialAdapter.existe(idSolicitanteSinEvaluaciones))).isTrue();
         assertThat(enSoloLectura(() -> historialAdapter.listarPorSolicitante(idSolicitanteSinEvaluaciones))).isEmpty();
         assertThat(enSoloLectura(() -> historialAdapter.existe(Long.MAX_VALUE))).isFalse();
+    }
+
+    // ---- US 5.1.2: historial filtrado y paginado ----
+
+    @Test
+    void laBusquedaFiltradaYSuConteoUsanLosMismosFiltrosEnPostgresql() {
+        FiltroHistorial filtro = new FiltroHistorial(FECHA.toLocalDate(), FECHA.toLocalDate().plusDays(1),
+                " 900000201 ", com.crediticio.evaluationquery.shared.domain.CategoriaRiesgo.MEDIO);
+
+        assertThat(enSoloLectura(() -> busquedaAdapter.buscar(filtro, new Paginacion(0, 20))))
+                .extracting(EvaluacionHistorica::getIdEvaluacion)
+                .containsExactly(idMismaFecha, idClasificada);
+        assertThat(enSoloLectura(() -> busquedaAdapter.contar(filtro))).isEqualTo(2);
+        assertThat(enSoloLectura(() -> busquedaAdapter.buscar(filtro, new Paginacion(1, 1))))
+                .extracting(EvaluacionHistorica::getIdEvaluacion).containsExactly(idClasificada);
+
+        FiltroHistorial sinClasificar = new FiltroHistorial(null, FECHA.toLocalDate().minusDays(9),
+                "900000201", null);
+        List<EvaluacionHistorica> anteriores = enSoloLectura(() -> busquedaAdapter.buscar(sinClasificar,
+                new Paginacion(0, 20)));
+        assertThat(anteriores).extracting(EvaluacionHistorica::getIdEvaluacion).containsExactly(idAnteriorAHu12);
+        assertThat(anteriores.get(0).getScoreTotal()).isEqualTo(20);
+
+        FiltroHistorial sinCoincidencias = new FiltroHistorial(null, null, "900000202", null);
+        assertThat(enSoloLectura(() -> busquedaAdapter.buscar(sinCoincidencias, new Paginacion(0, 20)))).isEmpty();
+        assertThat(enSoloLectura(() -> busquedaAdapter.contar(sinCoincidencias))).isZero();
     }
 
     // ---- HU14 y estado de la saga (V11 de scoring-api y V1 propia) ----
