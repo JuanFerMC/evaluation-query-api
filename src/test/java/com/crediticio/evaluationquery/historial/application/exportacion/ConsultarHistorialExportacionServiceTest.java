@@ -26,7 +26,7 @@ class ConsultarHistorialExportacionServiceTest {
             consultados.add(id);
             return List.of();
         };
-        var servicio = new ConsultarHistorialExportacionService(consulta);
+        var servicio = new ConsultarHistorialExportacionService(consulta, id -> "Solicitante " + id);
 
         List<HistorialSolicitanteExportacion> resultado = servicio.consultar(List.of(10L));
 
@@ -43,7 +43,7 @@ class ConsultarHistorialExportacionServiceTest {
             consultados.add(id);
             return List.of();
         };
-        var servicio = new ConsultarHistorialExportacionService(consulta);
+        var servicio = new ConsultarHistorialExportacionService(consulta, id -> "Solicitante " + id);
 
         List<HistorialSolicitanteExportacion> resultado =
                 servicio.consultar(List.of(10L, 20L, 30L));
@@ -123,7 +123,7 @@ class ConsultarHistorialExportacionServiceTest {
             }
             return List.of();
         };
-        var servicio = new ConsultarHistorialExportacionService(consulta);
+        var servicio = new ConsultarHistorialExportacionService(consulta, id -> "Solicitante " + id);
 
         assertThatThrownBy(() -> servicio.consultar(List.of(10L, 20L, 30L)))
                 .isInstanceOf(SolicitanteNoEncontradoException.class);
