@@ -57,7 +57,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/solicitantes/*/evaluaciones")
                                 .hasAnyRole(JwtConfig.ROL_ADMINISTRADOR, JwtConfig.ROL_ANALISTA)
                         .requestMatchers(HttpMethod.POST, "/api/v1/evaluaciones/export/**")
-                                .hasAnyRole(JwtConfig.ROL_ADMINISTRADOR, JwtConfig.ROL_ANALISTA)
+                                .hasRole(JwtConfig.ROL_ANALISTA)
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         .requestMatchers(RUTAS_SWAGGER).access((autenticacion, contexto) ->
                                 new AuthorizationDecision(swaggerHabilitado))
