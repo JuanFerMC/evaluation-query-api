@@ -55,6 +55,8 @@ public class SecurityConfig {
                                 .hasAnyRole(JwtConfig.ROL_ADMINISTRADOR, JwtConfig.ROL_ANALISTA)
                         .requestMatchers(HttpMethod.GET, "/api/v1/evaluaciones/*/recomendaciones")
                                 .hasAnyRole(JwtConfig.ROL_ADMINISTRADOR, JwtConfig.ROL_ANALISTA)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/reportes/distribucion-riesgo")
+                                .hasRole(JwtConfig.ROL_ANALISTA)
                         .requestMatchers(HttpMethod.GET, "/api/v1/evaluaciones")
                                 .hasAnyRole(JwtConfig.ROL_ADMINISTRADOR, JwtConfig.ROL_ANALISTA)
                         .requestMatchers(HttpMethod.GET, "/api/v1/solicitantes/*/evaluaciones")
