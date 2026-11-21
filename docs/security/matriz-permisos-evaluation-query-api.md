@@ -39,6 +39,7 @@ automatizada queda pendiente.
 | `GET /api/v1/evaluaciones/{idEvaluacion}/explicacion` | Permitido | Permitido | 401 | HU13 CA09, HU10 CA04 |
 | `GET /api/v1/evaluaciones/{idEvaluacion}/recomendaciones` | Permitido | Permitido | 401 | HU14 CA07, CA11, HU10 CA04 (P-HU14-05) |
 | `GET /api/v1/solicitantes/{idSolicitante}/evaluaciones` | Permitido | Permitido | 401 | HU15 CA10, HU10 CA04 |
+| `POST /api/v1/evaluaciones/export/{pdf,excel}` | Rechazado (403) | Permitido | 401 | US 5.2: exportación exclusiva de analistas |
 | `PUT /internal/v1/evaluaciones/{idEvaluacion}/recomendaciones` | Rechazado (401) | Rechazado (401) | 401 | HU14: solo el token de servicio S1 con el permiso `recomendaciones:generar` |
 | `PUT /internal/v1/proyeccion/solicitantes/{idSolicitante}` | Rechazado (401) | Rechazado (401) | 401 | Proyección: solo S1 con `proyeccion:actualizar`; idempotente |
 | `PUT /internal/v1/proyeccion/evaluaciones/{idEvaluacion}/completada` | Rechazado (401) | Rechazado (401) | 401 | Proyección: solo S1 con `proyeccion:actualizar`; solo `PENDIENTE` → `COMPLETADA` |
