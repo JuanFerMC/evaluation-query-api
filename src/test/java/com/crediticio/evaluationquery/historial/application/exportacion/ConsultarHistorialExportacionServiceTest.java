@@ -58,7 +58,7 @@ class ConsultarHistorialExportacionServiceTest {
 
     @Test
     void debeRechazarUnaListaNula() {
-        var servicio = new ConsultarHistorialExportacionService(id -> List.of());
+        var servicio = new ConsultarHistorialExportacionService(id -> List.of(), id -> "Solicitante " + id);
 
         assertThatThrownBy(() -> servicio.consultar(null))
                 .isInstanceOf(IllegalArgumentException.class)
