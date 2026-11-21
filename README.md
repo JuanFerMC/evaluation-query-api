@@ -42,7 +42,8 @@ las respuestas llevan `X-Trace-Id` (se reutiliza el recibido si es un UUID váli
 
 | Método y ruta | Respuestas |
 |---|---|
-| `GET /api/v1/evaluaciones` | 200 página del historial filtrado; 400 `VALIDATION_ERROR`; 401 `NO_AUTENTICADO`; 403 `ACCESO_DENEGADO`; 500 `INTERNAL_ERROR` (ambos roles) |\n| `GET /api/v1/evaluaciones/{idEvaluacion}/explicacion` | 200 explicación; 400 `VALIDATION_ERROR`; 401 `NO_AUTENTICADO`; 403 `ACCESO_DENEGADO`; 404 `EVALUACION_NO_ENCONTRADA`; 409 `EVALUACION_PENDIENTE`; 500 `INTERNAL_ERROR` si los datos persistidos son incoherentes |
+| `GET /api/v1/evaluaciones` | 200 página del historial filtrado; 400 `VALIDATION_ERROR`; 401 `NO_AUTENTICADO`; 403 `ACCESO_DENEGADO`; 500 `INTERNAL_ERROR` (ambos roles) |
+| `GET /api/v1/reportes/distribucion-riesgo` | 200 distribución por categoría; 401 `NO_AUTENTICADO`; 403 `ACCESO_DENEGADO`; 500 `INTERNAL_ERROR` (solo `ANALISTA_CREDITO`) |
 | `GET /api/v1/evaluaciones/{idEvaluacion}/recomendaciones` | 200 recomendaciones; 400; 401; 403; 404 `EVALUACION_NO_ENCONTRADA`; 409 `EVALUACION_PENDIENTE` |
 | `GET /api/v1/solicitantes/{idSolicitante}/evaluaciones` | 200 lista (vacía si no tiene evaluaciones); 400; 401; 403; 404 `SOLICITANTE_NO_ENCONTRADO` |
 | `POST /api/v1/evaluaciones/export/pdf` | 200 archivo PDF (`application/pdf`); 400 `VALIDATION_ERROR`; 401 `NO_AUTENTICADO`; 403 `ACCESO_DENEGADO`; 404 `SOLICITANTE_NO_ENCONTRADO`; 500 `INTERNAL_ERROR` |
@@ -149,7 +150,7 @@ Los dos endpoints de exportación reciben un arreglo de identificadores de solic
 
 `POST /api/v1/evaluaciones/export/excel`
 
-Ambos reciben `Content-Type: application/json` y requieren un JWT de acceso con rol `ADMINISTRADOR_RIESGO` o `ANALISTA_CREDITO`:
+Ambos reciben `Content-Type: application/json` y requieren un JWT de acceso con rol `ANALISTA_CREDITO`:
 
 ```http
 Authorization: Bearer <token>
