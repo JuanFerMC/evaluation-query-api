@@ -43,7 +43,7 @@ las respuestas llevan `X-Trace-Id` (se reutiliza el recibido si es un UUID váli
 
 | Método y ruta | Respuestas |
 |---|---|
-| `GET /api/v1/evaluaciones/{idEvaluacion}/explicacion` | 200 explicación; 400 `VALIDATION_ERROR`; 401 `NO_AUTENTICADO`; 403 `ACCESO_DENEGADO`; 404 `EVALUACION_NO_ENCONTRADA`; 409 `EVALUACION_PENDIENTE`; 500 `INTERNAL_ERROR` si los datos persistidos son incoherentes |
+| `GET /api/v1/evaluaciones` | 200 página del historial filtrado; 400 `VALIDATION_ERROR`; 401 `NO_AUTENTICADO`; 403 `ACCESO_DENEGADO`; 500 `INTERNAL_ERROR` (ambos roles) |\n| `GET /api/v1/evaluaciones/{idEvaluacion}/explicacion` | 200 explicación; 400 `VALIDATION_ERROR`; 401 `NO_AUTENTICADO`; 403 `ACCESO_DENEGADO`; 404 `EVALUACION_NO_ENCONTRADA`; 409 `EVALUACION_PENDIENTE`; 500 `INTERNAL_ERROR` si los datos persistidos son incoherentes |
 | `GET /api/v1/evaluaciones/{idEvaluacion}/recomendaciones` | 200 recomendaciones; 400; 401; 403; 404 `EVALUACION_NO_ENCONTRADA`; 409 `EVALUACION_PENDIENTE` |
 | `GET /api/v1/solicitantes/{idSolicitante}/evaluaciones` | 200 lista (vacía si no tiene evaluaciones); 400; 401; 403; 404 `SOLICITANTE_NO_ENCONTRADO` |
 | `POST /api/v1/evaluaciones/export/pdf` | 200 archivo PDF (`application/pdf`); 400 `VALIDATION_ERROR`; 401 `NO_AUTENTICADO`; 403 `ACCESO_DENEGADO`; 404 `SOLICITANTE_NO_ENCONTRADO`; 500 `INTERNAL_ERROR` |
@@ -97,6 +97,24 @@ y lista vacía (P-HU14-04). Selección (P-HU14-02, confirmada): una recomendaci�
 por cada variable con algún factor desfavorable (condición cumplida con contribución negativa); primero la de
 categoría y después las variables en orden alfabético; ante varias entradas para el mismo criterio, la de
 código menor.
+
+## Búsqueda filtrada del historial (US 5.1.2)
+
+`GET /api/v1/evaluaciones` permite consultar el historial completo con filtros opcionales combinables mediante AND. Está disponible para `ADMINISTRADOR_RIESGO` y `ANALISTA_CREDITO`; excluye evaluaciones `PENDIENTE`, ordena de la más reciente a la más antigua y pagina en base de datos.
+
+| Parámetro | Descripción |
+|---|---|
+| `fechaDesde` | Primer día incluido, formato `yyyy-MM-dd` |
+| `fechaHasta` | Último día incluido completo, formato `yyyy-MM-dd` |
+| `numeroDocumento` | Documento exacto del solicitante; se recortan espacios exteriores |
+| `categoria` | `BAJO`, `MEDIO` o `ALTO` |
+| `pagina` | Página desde 0 (por defecto 0) |
+| `tamano` | Registros por página, de 1 a 100 (por defecto 20) |
+
+Ejemplo: `GET /api/v1/evaluaciones?fechaDesde=2026-11-01&fechaHasta=2026-11-30&categoria=ALTO&pagina=0&tamano=20`.
+La respuesta incluye `evaluaciones`, `pagina`, `tamano`, `totalRegistros` y `totalPaginas`. Una búsqueda sin coincidencias responde 200 con una lista vacía y totales en cero. Los elementos conservan el formato de HU15 y no exponen datos personales del solicitante.
+
+---
 
 ## Exportación de historiales (US 5.2)
 
