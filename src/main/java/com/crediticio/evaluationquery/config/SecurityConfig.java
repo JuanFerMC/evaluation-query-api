@@ -20,7 +20,8 @@ import java.util.List;
 /**
  * Matriz de permisos de evaluation-query-api (HU10, docs/security/matriz-permisos-evaluation-query-api.md).
  * Las consultas de explicación (HU13), recomendaciones (HU14) e historial (HU15) se permiten a ambos roles
- * (HU10 CA04, HU14 CA11); toda otra ruta se deniega salvo /actuator/health. La generación interna de HU14
+ * (HU10 CA04, HU14 CA11); la exportación de historiales se reserva a ANALISTA_CREDITO. Toda otra ruta se deniega
+ * salvo /actuator/health. La generación interna de HU14
  * (/internal/**) no la autoriza ningún token de usuario: tiene su propia cadena (SeguridadServicioConfig) y,
  * sin ella, esta la deniega. Cada petición se autentica con su JWT (sin sesión HTTP ni llamadas a auth-api);
  * el rol proviene solo del token.
