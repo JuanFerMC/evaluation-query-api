@@ -36,7 +36,7 @@ automatizada queda pendiente.
 
 | Ruta | ADMINISTRADOR_RIESGO | ANALISTA_CREDITO | Sin token o token inválido | Requisito |
 | --- | --- | --- | --- | --- |
-| `GET /api/v1/evaluaciones/{idEvaluacion}/explicacion` | Permitido | Permitido | 401 | HU13 CA09, HU10 CA04 |
+| `GET /api/v1/evaluaciones` | Permitido | Permitido | 401 | US 5.1.2: historial filtrado y paginado |\n| `GET /api/v1/evaluaciones/{idEvaluacion}/explicacion` | Permitido | Permitido | 401 | HU13 CA09, HU10 CA04 |
 | `GET /api/v1/evaluaciones/{idEvaluacion}/recomendaciones` | Permitido | Permitido | 401 | HU14 CA07, CA11, HU10 CA04 (P-HU14-05) |
 | `GET /api/v1/solicitantes/{idSolicitante}/evaluaciones` | Permitido | Permitido | 401 | HU15 CA10, HU10 CA04 |
 | `POST /api/v1/evaluaciones/export/{pdf,excel}` | Rechazado (403) | Permitido | 401 | US 5.2: exportación exclusiva de analistas |
