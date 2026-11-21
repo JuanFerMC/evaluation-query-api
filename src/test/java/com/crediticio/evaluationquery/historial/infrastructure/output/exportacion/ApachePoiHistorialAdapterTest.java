@@ -91,7 +91,7 @@ class ApachePoiHistorialAdapterTest {
                 (libro, salida) -> { throw new IOException("fallo simulado"); });
 
         assertThatThrownBy(() -> adaptador.generar(
-                List.of(new HistorialSolicitanteExportacion(101L, "Solicitante 101L", List.of()))))
+                List.of(new HistorialSolicitanteExportacion(101L, "Solicitante 101", List.of()))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("No fue posible generar el reporte Excel")
                 .hasCauseInstanceOf(IOException.class);
