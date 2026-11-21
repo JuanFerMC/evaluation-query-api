@@ -69,6 +69,12 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- Registro de métricas Prometheus -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
         <!-- API web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -189,9 +195,8 @@
                                     <groupId>org.projectlombok</groupId>
                                     <artifactId>lombok</artifactId>
                                 </path>
-                            </annotationProcessorPaths>
-                        </configuration>
-                    </execution>
+                            </configuration>
+                        </execution>
                 </executions>
             </plugin>
 
