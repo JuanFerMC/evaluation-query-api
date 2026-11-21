@@ -20,8 +20,8 @@ class ApachePoiHistorialAdapterTest {
     @Test
     void debeGenerarExcelConSeccionesPorSolicitanteYDatosDeEvaluacion() throws Exception {
         var historiales = List.of(
-                new HistorialSolicitanteExportacion(101L, List.of(evaluacion(9001L))),
-                new HistorialSolicitanteExportacion(202L, List.of()));
+                new HistorialSolicitanteExportacion(101L, "Solicitante 101L", List.of(evaluacion(9001L))),
+                new HistorialSolicitanteExportacion(202L, "Solicitante 202L", List.of()));
 
         byte[] archivo = adapter.generar(historiales);
 
@@ -29,7 +29,7 @@ class ApachePoiHistorialAdapterTest {
         try (var libro = WorkbookFactory.create(new ByteArrayInputStream(archivo))) {
             var hoja = libro.getSheet("Historial de evaluaciones");
             assertThat(hoja).isNotNull();
-            assertThat(hoja.getRow(0).getCell(0).getStringCellValue()).isEqualTo("Solicitante #101");
+            assertThat(hoja.getRow(0).getCell(0).getStringCellValue()).isEqualTo("Solicitante 101 | ID: 101");
             assertThat(hoja.getRow(1).getCell(0).getStringCellValue()).isEqualTo("ID evaluación");
             assertThat(hoja.getRow(2).getCell(0).getNumericCellValue()).isEqualTo(9001);
             assertThat(hoja.getRow(2).getCell(2).getNumericCellValue()).isEqualTo(720);
@@ -46,7 +46,7 @@ class ApachePoiHistorialAdapterTest {
             assertThat(hoja.getColumnWidth(8)).isEqualTo(52 * 256);
             assertThat(hoja.getRow(1).getCell(0).getCellStyle().getFillForegroundColor())
                     .isNotEqualTo((short) 0);
-            assertThat(hoja.getRow(4).getCell(0).getStringCellValue()).isEqualTo("Solicitante #202");
+            assertThat(hoja.getRow(4).getCell(0).getStringCellValue()).isEqualTo("Solicitante 202 | ID: 202");
             assertThat(hoja.getRow(6).getCell(0).getStringCellValue())
                     .isEqualTo("Sin evaluaciones registradas.");
         }
@@ -91,7 +91,7 @@ class ApachePoiHistorialAdapterTest {
                 (libro, salida) -> { throw new IOException("fallo simulado"); });
 
         assertThatThrownBy(() -> adaptador.generar(
-                List.of(new HistorialSolicitanteExportacion(101L, List.of()))))
+                List.of(new HistorialSolicitanteExportacion(101L, "Solicitante 101L", List.of()))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("No fue posible generar el reporte Excel")
                 .hasCauseInstanceOf(IOException.class);
