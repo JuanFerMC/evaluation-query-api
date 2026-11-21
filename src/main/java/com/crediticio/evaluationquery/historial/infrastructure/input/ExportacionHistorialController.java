@@ -38,14 +38,22 @@ public class ExportacionHistorialController {
         this.generadorExcel = generadorExcel;
     }
 
-    @Operation(summary = "Exportar historiales de evaluación a PDF",
-            description = "Genera un PDF descargable con los historiales completos de hasta 50 solicitantes.")
+    @Operation(summary = "US 5.2.1 - Exportar historial de evaluaciones a PDF",
+            description = "Operación exclusiva para ANALISTA_CREDITO. Recibe de 1 a 50 IDs de solicitantes "
+                    + "positivos, únicos y no nulos. Un ID genera el historial individual; varios generan "
+                    + "un único PDF agrupado por solicitante. Si algún solicitante no existe, no se genera "
+                    + "un reporte parcial. Devuelve application/pdf como attachment con nombre "
+                    + "historial-evaluaciones.pdf. Los errores usan el sobre ApiError. "
+                    + "Ver docs/api/exportacion-historial.md para el contrato completo.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Documento PDF generado",
                     content = @Content(mediaType = "application/pdf")),
-            @ApiResponse(responseCode = "400", description = "Solicitud inválida"),
-            @ApiResponse(responseCode = "404", description = "Algún solicitante no existe"),
-            @ApiResponse(responseCode = "500", description = "Error interno")
+            @ApiResponse(responseCode = "400", description = "Solicitud inválida (VALIDATION_ERROR)",
+                    content = @Content(schema = @Schema(implementation = com.crediticio.evaluationquery.shared.response.ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Algún solicitante no existe (SOLICITANTE_NO_ENCONTRADO)",
+                    content = @Content(schema = @Schema(implementation = com.crediticio.evaluationquery.shared.response.ApiError.class))),
+            @ApiResponse(responseCode = "500", description = "Error interno (INTERNAL_ERROR)",
+                    content = @Content(schema = @Schema(implementation = com.crediticio.evaluationquery.shared.response.ApiError.class)))
     })
     @PostMapping(value = "/pdf", consumes = MediaType.APPLICATION_JSON_VALUE, produces = "application/pdf")
     public ResponseEntity<byte[]> exportarPdf(@Valid @RequestBody SolicitudExportacionHistorial solicitud) {
@@ -57,14 +65,22 @@ public class ExportacionHistorialController {
                 .body(documento);
     }
 
-    @Operation(summary = "Exportar historiales de evaluación a Excel",
-            description = "Genera un XLSX descargable con los historiales completos de hasta 50 solicitantes.")
+    @Operation(summary = "US 5.2.2 - Exportar historial de evaluaciones a Excel",
+            description = "Operación exclusiva para ANALISTA_CREDITO. Recibe de 1 a 50 IDs de solicitantes "
+                    + "positivos, únicos y no nulos. Un ID genera el historial individual; varios generan "
+                    + "un único XLSX agrupado por solicitante. Si algún solicitante no existe, no se genera "
+                    + "un reporte parcial. Devuelve el MIME type XLSX como attachment con nombre "
+                    + "historial-evaluaciones.xlsx. Los errores usan el sobre ApiError. "
+                    + "Ver docs/api/exportacion-historial.md para el contrato completo.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Documento Excel generado",
                     content = @Content(mediaType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")),
-            @ApiResponse(responseCode = "400", description = "Solicitud inválida"),
-            @ApiResponse(responseCode = "404", description = "Algún solicitante no existe"),
-            @ApiResponse(responseCode = "500", description = "Error interno")
+            @ApiResponse(responseCode = "400", description = "Solicitud inválida (VALIDATION_ERROR)",
+                    content = @Content(schema = @Schema(implementation = com.crediticio.evaluationquery.shared.response.ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Algún solicitante no existe (SOLICITANTE_NO_ENCONTRADO)",
+                    content = @Content(schema = @Schema(implementation = com.crediticio.evaluationquery.shared.response.ApiError.class))),
+            @ApiResponse(responseCode = "500", description = "Error interno (INTERNAL_ERROR)",
+                    content = @Content(schema = @Schema(implementation = com.crediticio.evaluationquery.shared.response.ApiError.class)))
     })
     @PostMapping(value = "/excel", consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
