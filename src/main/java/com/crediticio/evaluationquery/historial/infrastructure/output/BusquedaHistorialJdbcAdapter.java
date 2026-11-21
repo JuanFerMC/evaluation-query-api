@@ -11,14 +11,26 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * US 5.1.2: lee con SELECT las tablas de scoring-api. La página y el conteo usan la misma cláusula WHERE,
- * construida una sola vez por filtro, con parámetros enlazados. La paginación se hace en la base (LIMIT/OFFSET):
- * nunca se carga el historial completo. El puntaje derivado de las evaluaciones anteriores a HU12 (P-HU15-01) se
- * calcula con una subconsulta por fila de la página, en la misma sentencia (sin N+1). De solicitante solo se
- * compara numero_documento, sin leerlo ni devolverlo (CA13). Excluye las evaluaciones PENDIENTE (CA08).
+ * US 5.1.2: lee con SELECT las tablas de scoring-api. La página y el conteo usan las mismas condiciones
+ * estáticas y parámetros enlazados. La paginación se hace en la base (LIMIT/OFFSET): nunca se carga el
+ * historial completo. El puntaje derivado de las evaluaciones anteriores a HU12 (P-HU15-01) se calcula con
+ * una subconsulta por fila de la página, en la misma sentencia (sin N+1). De solicitante solo se compara
+ * numero_documento, sin leerlo ni devolverlo (CA13). Excluye las evaluaciones PENDIENTE (CA08).
  */
 @Component
 public class BusquedaHistorialJdbcAdapter implements BusquedaHistorialPort {
+
+    private static final String CONDICIONES_WHERE = """
+            WHERE (e.estado IS NULL OR e.estado <> 'PENDIENTE')
+              AND (:usarInicio = false OR e.fecha_evaluacion >= :inicio)
+              AND (:usarFin = false OR e.fecha_evaluacion < :finExclusivo)
+              AND (:usarDocumento = false OR e.id_solicitante IN (
+                    SELECT s.id_solicitante
+                    FROM solicitante s
+                    WHERE s.numero_documento = :numeroDocumento
+              ))
+              AND (:usarCategoria = false OR e.categoria = :categoria)
+            """;
 
     private static final String CONSULTA_PAGINA = """
             SELECT e.id_evaluacion, e.fecha_evaluacion, e.score_total, e.categoria, e.estado,
@@ -28,7 +40,7 @@ public class BusquedaHistorialJdbcAdapter implements BusquedaHistorialPort {
                     WHERE d.id_evaluacion = e.id_evaluacion) AS suma_detalles
             FROM evaluacion e
             LEFT JOIN politica_clasificacion p ON p.id_politica = e.id_politica
-            %s
+            """ + CONDICIONES_WHERE + """
             ORDER BY e.fecha_evaluacion DESC, e.id_evaluacion DESC
             LIMIT :limite OFFSET :desplazamiento
             """;
@@ -36,8 +48,7 @@ public class BusquedaHistorialJdbcAdapter implements BusquedaHistorialPort {
     private static final String CONSULTA_CONTEO = """
             SELECT COUNT(*)
             FROM evaluacion e
-            %s
-            """;
+            """ + CONDICIONES_WHERE;
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -47,46 +58,31 @@ public class BusquedaHistorialJdbcAdapter implements BusquedaHistorialPort {
 
     @Override
     public List<EvaluacionHistorica> buscar(FiltroHistorial filtro, Paginacion paginacion) {
-        Condiciones condiciones = Condiciones.de(filtro);
-        MapSqlParameterSource parametros = condiciones.parametros()
+        MapSqlParameterSource parametros = parametros(filtro)
                 .addValue("limite", paginacion.tamano())
                 .addValue("desplazamiento", paginacion.desplazamiento());
-        return jdbcTemplate.query(CONSULTA_PAGINA.formatted(condiciones.where()), parametros,
-                FilaEvaluacionHistorica.MAPEADOR);
+        return jdbcTemplate.query(CONSULTA_PAGINA, parametros, FilaEvaluacionHistorica.MAPEADOR);
     }
 
     @Override
     public long contar(FiltroHistorial filtro) {
-        Condiciones condiciones = Condiciones.de(filtro);
-        Long total = jdbcTemplate.queryForObject(CONSULTA_CONTEO.formatted(condiciones.where()),
-                condiciones.parametros(), Long.class);
+        Long total = jdbcTemplate.queryForObject(CONSULTA_CONTEO, parametros(filtro), Long.class);
         return total == null ? 0 : total;
     }
 
-    /** Cláusula WHERE y parámetros de un filtro; solo incluye las condiciones de los filtros informados. */
-    private record Condiciones(String where, MapSqlParameterSource parametros) {
-
-        static Condiciones de(FiltroHistorial filtro) {
-            StringBuilder where = new StringBuilder("WHERE (e.estado IS NULL OR e.estado <> 'PENDIENTE')");
-            MapSqlParameterSource parametros = new MapSqlParameterSource();
-            if (filtro.inicioInclusivo() != null) {
-                where.append("\n  AND e.fecha_evaluacion >= :inicio");
-                parametros.addValue("inicio", filtro.inicioInclusivo());
-            }
-            if (filtro.finExclusivo() != null) {
-                where.append("\n  AND e.fecha_evaluacion < :finExclusivo");
-                parametros.addValue("finExclusivo", filtro.finExclusivo());
-            }
-            if (filtro.numeroDocumento() != null) {
-                where.append("\n  AND e.id_solicitante IN (SELECT s.id_solicitante FROM solicitante s "
-                        + "WHERE s.numero_documento = :numeroDocumento)");
-                parametros.addValue("numeroDocumento", filtro.numeroDocumento());
-            }
-            if (filtro.categoria() != null) {
-                where.append("\n  AND e.categoria = :categoria");
-                parametros.addValue("categoria", filtro.categoria().name());
-            }
-            return new Condiciones(where.toString(), parametros);
-        }
+    /**
+     * Los valores opcionales se enlazan como parámetros; los booleanos activan o desactivan cada filtro.
+     * Ningún dato del usuario se concatena ni se interpola en la sentencia SQL.
+     */
+    private static MapSqlParameterSource parametros(FiltroHistorial filtro) {
+        return new MapSqlParameterSource()
+                .addValue("usarInicio", filtro.inicioInclusivo() != null)
+                .addValue("inicio", filtro.inicioInclusivo())
+                .addValue("usarFin", filtro.finExclusivo() != null)
+                .addValue("finExclusivo", filtro.finExclusivo())
+                .addValue("usarDocumento", filtro.numeroDocumento() != null)
+                .addValue("numeroDocumento", filtro.numeroDocumento())
+                .addValue("usarCategoria", filtro.categoria() != null)
+                .addValue("categoria", filtro.categoria() == null ? null : filtro.categoria().name());
     }
 }
