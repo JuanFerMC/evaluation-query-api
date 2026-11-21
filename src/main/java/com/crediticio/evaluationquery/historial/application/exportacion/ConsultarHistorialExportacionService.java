@@ -3,6 +3,7 @@ package com.crediticio.evaluationquery.historial.application.exportacion;
 import com.crediticio.evaluationquery.historial.application.exportacion.dto.HistorialSolicitanteExportacion;
 import com.crediticio.evaluationquery.historial.ports.input.ConsultarHistorialExportacionUseCase;
 import com.crediticio.evaluationquery.historial.ports.input.ConsultarHistorialUseCase;
+import com.crediticio.evaluationquery.historial.ports.output.SolicitanteNombrePort;
 import com.crediticio.evaluationquery.shared.exception.IdentificadorInvalidoException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,10 +22,13 @@ public class ConsultarHistorialExportacionService
     private static final int MAX_SOLICITANTES_POR_EXPORTACION = 50;
 
     private final ConsultarHistorialUseCase consultarHistorialUseCase;
+    private final SolicitanteNombrePort solicitanteNombrePort;
 
     public ConsultarHistorialExportacionService(
-            ConsultarHistorialUseCase consultarHistorialUseCase) {
+            ConsultarHistorialUseCase consultarHistorialUseCase,
+            SolicitanteNombrePort solicitanteNombrePort) {
         this.consultarHistorialUseCase = consultarHistorialUseCase;
+        this.solicitanteNombrePort = solicitanteNombrePort;
     }
 
     @Override
@@ -35,6 +39,7 @@ public class ConsultarHistorialExportacionService
         return solicitanteIds.stream()
                 .map(idSolicitante -> new HistorialSolicitanteExportacion(
                         idSolicitante,
+                        solicitanteNombrePort.obtenerNombreCompleto(idSolicitante),
                         consultarHistorialUseCase.consultar(idSolicitante)))
                 .toList();
     }
