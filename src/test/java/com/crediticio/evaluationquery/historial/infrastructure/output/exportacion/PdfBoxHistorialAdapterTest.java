@@ -37,7 +37,7 @@ class PdfBoxHistorialAdapterTest {
                     "Puntaje total: 720", "Origen: CALCULADO", "Clasificada: Sí",
                     "Categoría: BAJO_RIESGO", "Versión de política: 3", "Estado: COMPLETADA",
                     "Ruta de explicación:", "Ruta de recomendaciones:",
-                    "Solicitante 202", "Este solicitante no tiene evaluaciones registradas.");
+                    "Solicitante 202", "ID: 202", "Este solicitante no tiene evaluaciones registradas.");
         }
     }
 
