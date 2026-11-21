@@ -6,7 +6,8 @@
 -- Qué hace:
 --   1. Crea el rol de la aplicación (LOGIN, sin contraseña en este archivo; NOINHERIT, sin privilegios
 --      administrativos).
---   2. Le da SELECT únicamente sobre las seis tablas de scoring-api que lee.
+--   2. Le da SELECT sobre las tablas de scoring-api que consulta; nombre_completo se usa solo para identificar
+--      las secciones de los reportes exportados.
 --   3. Crea el esquema propio, cuyo propietario es el rol migrador de esta API (si ese rol no existe, lo crea
 --      con LOGIN, sin contraseña y sin privilegios administrativos).
 --   4. Le da USAGE sobre el esquema propio. Los permisos sobre las tablas que cree la migración V1 se dan
@@ -71,7 +72,7 @@ CREATE ROLE :"rol_app" LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREP
 COMMENT ON ROLE :"rol_app" IS 'evaluation-query-api: lectura de scoring-api y recomendaciones de HU14';
 GRANT CONNECT ON DATABASE :"base_esperada" TO :"rol_app";
 
--- 2. Solo lectura sobre las tablas de scoring-api que consulta
+-- 2. Solo lectura sobre las tablas de scoring-api que consulta (incluye nombre_completo para reportes)
 GRANT USAGE ON SCHEMA :"esquema_scoring" TO :"rol_app";
 GRANT SELECT ON :"esquema_scoring".solicitante, :"esquema_scoring".riesgo, :"esquema_scoring".regla_scoring,
     :"esquema_scoring".politica_clasificacion, :"esquema_scoring".evaluacion,

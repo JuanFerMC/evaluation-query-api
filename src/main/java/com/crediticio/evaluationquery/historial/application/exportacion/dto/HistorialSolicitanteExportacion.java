@@ -10,6 +10,7 @@ import java.util.List;
  */
 public record HistorialSolicitanteExportacion(
         long idSolicitante,
+        String nombreSolicitante,
         List<EvaluacionHistorialResponse> evaluaciones) {
 
     public HistorialSolicitanteExportacion {

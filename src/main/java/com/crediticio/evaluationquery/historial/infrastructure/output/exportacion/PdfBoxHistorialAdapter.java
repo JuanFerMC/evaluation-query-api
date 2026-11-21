@@ -73,7 +73,7 @@ public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
             escritor.titulo();
 
             for (HistorialSolicitanteExportacion historial : historiales) {
-                escritor.seccionSolicitante(historial.idSolicitante());
+                escritor.seccionSolicitante(historial.nombreSolicitante(), historial.idSolicitante());
                 if (historial.evaluaciones().isEmpty()) {
                     escritor.mensaje("Este solicitante no tiene evaluaciones registradas.");
                 } else {
@@ -158,7 +158,7 @@ public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
             posicionY = 710;
         }
 
-        private void seccionSolicitante(long idSolicitante) throws IOException {
+        private void seccionSolicitante(String nombreSolicitante, long idSolicitante) throws IOException {
             // Añadir separación superior si no estamos al inicio de la página
             if (posicionY < 700) {
                 posicionY -= 16; 
@@ -167,20 +167,26 @@ public class PdfBoxHistorialAdapter implements GeneradorPdfPort {
             try (PDPageContentStream contenido = new PDPageContentStream(
                     documento, pagina, PDPageContentStream.AppendMode.APPEND, true, true)) {
                 contenido.setNonStrokingColor(AZUL_CLARO);
-                contenido.addRect(MARGEN_IZQUIERDO, posicionY - 28, ANCHO_PAGINA - 84, 28);
+                contenido.addRect(MARGEN_IZQUIERDO, posicionY - 34, ANCHO_PAGINA - 84, 34);
                 contenido.fill();
                 contenido.setNonStrokingColor(ACENTO);
-                contenido.addRect(MARGEN_IZQUIERDO, posicionY - 28, 4, 28);
+                contenido.addRect(MARGEN_IZQUIERDO, posicionY - 34, 4, 34);
                 contenido.fill();
                 contenido.beginText();
                 contenido.setNonStrokingColor(AZUL_OSCURO);
                 contenido.setFont(FUENTE_NEGRITA, 12);
-                contenido.newLineAtOffset(MARGEN_IZQUIERDO + 13, posicionY - 18);
-                contenido.showText("SOLICITANTE  #" + idSolicitante);
+                contenido.newLineAtOffset(MARGEN_IZQUIERDO + 13, posicionY - 14);
+                contenido.showText(sanitizar(nombreSolicitante));
+                contenido.endText();
+                contenido.beginText();
+                contenido.setNonStrokingColor(TEXTO);
+                contenido.setFont(FUENTE, 9);
+                contenido.newLineAtOffset(MARGEN_IZQUIERDO + 13, posicionY - 27);
+                contenido.showText("ID: " + idSolicitante);
                 contenido.endText();
             }
             // Dejar espacio debajo de la barra del solicitante antes de la tarjeta
-            posicionY -= 38; 
+            posicionY -= 44; 
         }
 
         private void tarjetaEvaluacion(EvaluacionHistorialResponse evaluacion) throws IOException {
