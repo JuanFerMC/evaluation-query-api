@@ -37,11 +37,15 @@ public class ConsultarHistorialExportacionService
         validarSolicitantes(solicitanteIds);
 
         return solicitanteIds.stream()
-                .map(idSolicitante -> new HistorialSolicitanteExportacion(
-                        idSolicitante,
-                        solicitanteNombrePort.obtenerNombreCompleto(idSolicitante),
-                        consultarHistorialUseCase.consultar(idSolicitante)))
+                .map(this::crearHistorial)
                 .toList();
+    }
+
+    private HistorialSolicitanteExportacion crearHistorial(long idSolicitante) {
+        // La consulta HU15 valida la existencia y conserva el 404 antes de leer el nombre.
+        var evaluaciones = consultarHistorialUseCase.consultar(idSolicitante);
+        String nombre = solicitanteNombrePort.obtenerNombreCompleto(idSolicitante);
+        return new HistorialSolicitanteExportacion(idSolicitante, nombre, evaluaciones);
     }
 
     private void validarSolicitantes(List<Long> solicitanteIds) {
