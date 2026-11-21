@@ -207,14 +207,21 @@ class SeguridadIntegracionTest {
             "/api/v1/evaluaciones/export/pdf",
             "/api/v1/evaluaciones/export/excel"
     })
-    void exportacionesDebenAutorizarAmbosRolesYRechazarOtros(String ruta) throws Exception {
-        for (String rol : List.of(JwtConfig.ROL_ADMINISTRADOR, JwtConfig.ROL_ANALISTA)) {
+    void exportacionesSoloDebenAutorizarAnalistas(String ruta) throws Exception {
+        for (String rol : List.of(JwtConfig.ROL_ANALISTA)) {
             mockMvc.perform(post(ruta)
                             .header(HttpHeaders.AUTHORIZATION, bearer(rol))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"solicitanteIds\":[]}"))
                     .andExpect(status().isBadRequest());
         }
+
+        mockMvc.perform(post(ruta)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(JwtConfig.ROL_ADMINISTRADOR))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"solicitanteIds\":[]}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("ACCESO_DENEGADO"));
 
         mockMvc.perform(post(ruta)
                         .header(HttpHeaders.AUTHORIZATION, bearer("AUDITOR"))

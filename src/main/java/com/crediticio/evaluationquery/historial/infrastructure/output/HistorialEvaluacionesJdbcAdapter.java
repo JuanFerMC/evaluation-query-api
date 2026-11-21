@@ -3,6 +3,7 @@ package com.crediticio.evaluationquery.historial.infrastructure.output;
 import com.crediticio.evaluationquery.historial.domain.EvaluacionHistorica;
 import com.crediticio.evaluationquery.historial.ports.output.HistorialEvaluacionesPort;
 import com.crediticio.evaluationquery.historial.ports.output.SolicitanteExistenciaPort;
+import com.crediticio.evaluationquery.historial.ports.output.SolicitanteNombrePort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -16,10 +17,13 @@ import java.util.List;
  * las evaluaciones PENDIENTE de la saga de HU14 (CA08); incluye las COMPLETADA y las anteriores a la saga.
  */
 @Component
-public class HistorialEvaluacionesJdbcAdapter implements SolicitanteExistenciaPort, HistorialEvaluacionesPort {
+public class HistorialEvaluacionesJdbcAdapter implements SolicitanteExistenciaPort, SolicitanteNombrePort, HistorialEvaluacionesPort {
 
     private static final String EXISTE_SOLICITANTE =
             "SELECT COUNT(*) FROM solicitante WHERE id_solicitante = :idSolicitante";
+
+    private static final String CONSULTA_NOMBRE =
+            "SELECT nombre_completo FROM solicitante WHERE id_solicitante = :idSolicitante";
 
     private static final String CONSULTA_HISTORIAL = """
             SELECT e.id_evaluacion, e.fecha_evaluacion, e.score_total, e.categoria, e.estado,
@@ -44,6 +48,11 @@ public class HistorialEvaluacionesJdbcAdapter implements SolicitanteExistenciaPo
     public boolean existe(long idSolicitante) {
         Long cantidad = jdbcTemplate.queryForObject(EXISTE_SOLICITANTE, parametros(idSolicitante), Long.class);
         return cantidad != null && cantidad > 0;
+    }
+
+    @Override
+    public String obtenerNombreCompleto(long idSolicitante) {
+        return jdbcTemplate.queryForObject(CONSULTA_NOMBRE, parametros(idSolicitante), String.class);
     }
 
     @Override

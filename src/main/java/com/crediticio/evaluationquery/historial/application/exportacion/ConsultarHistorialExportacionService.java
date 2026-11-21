@@ -3,6 +3,7 @@ package com.crediticio.evaluationquery.historial.application.exportacion;
 import com.crediticio.evaluationquery.historial.application.exportacion.dto.HistorialSolicitanteExportacion;
 import com.crediticio.evaluationquery.historial.ports.input.ConsultarHistorialExportacionUseCase;
 import com.crediticio.evaluationquery.historial.ports.input.ConsultarHistorialUseCase;
+import com.crediticio.evaluationquery.historial.ports.output.SolicitanteNombrePort;
 import com.crediticio.evaluationquery.shared.exception.IdentificadorInvalidoException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,10 +22,13 @@ public class ConsultarHistorialExportacionService
     private static final int MAX_SOLICITANTES_POR_EXPORTACION = 50;
 
     private final ConsultarHistorialUseCase consultarHistorialUseCase;
+    private final SolicitanteNombrePort solicitanteNombrePort;
 
     public ConsultarHistorialExportacionService(
-            ConsultarHistorialUseCase consultarHistorialUseCase) {
+            ConsultarHistorialUseCase consultarHistorialUseCase,
+            SolicitanteNombrePort solicitanteNombrePort) {
         this.consultarHistorialUseCase = consultarHistorialUseCase;
+        this.solicitanteNombrePort = solicitanteNombrePort;
     }
 
     @Override
@@ -33,10 +37,15 @@ public class ConsultarHistorialExportacionService
         validarSolicitantes(solicitanteIds);
 
         return solicitanteIds.stream()
-                .map(idSolicitante -> new HistorialSolicitanteExportacion(
-                        idSolicitante,
-                        consultarHistorialUseCase.consultar(idSolicitante)))
+                .map(this::crearHistorial)
                 .toList();
+    }
+
+    private HistorialSolicitanteExportacion crearHistorial(long idSolicitante) {
+        // La consulta HU15 valida la existencia y conserva el 404 antes de leer el nombre.
+        var evaluaciones = consultarHistorialUseCase.consultar(idSolicitante);
+        String nombre = solicitanteNombrePort.obtenerNombreCompleto(idSolicitante);
+        return new HistorialSolicitanteExportacion(idSolicitante, nombre, evaluaciones);
     }
 
     private void validarSolicitantes(List<Long> solicitanteIds) {

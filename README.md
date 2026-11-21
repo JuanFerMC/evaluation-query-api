@@ -37,8 +37,8 @@ pendientes. El [contrato de la proyección](docs/arquitectura/contrato-proyeccio
 
 ## Endpoints
 
-Los endpoints públicos exigen `Authorization: Bearer <token>` de `auth-api` con rol `ADMINISTRADOR_RIESGO` o
-`ANALISTA_CREDITO` (HU10 CA04). Errores con el formato común `{errorCode, message, details, traceId}`; todas
+Los endpoints de consulta exigen `Authorization: Bearer <token>` de `auth-api` con rol `ADMINISTRADOR_RIESGO` o
+`ANALISTA_CREDITO` (HU10 CA04). Los endpoints de exportación PDF/Excel son exclusivos de `ANALISTA_CREDITO`. Errores con el formato común `{errorCode, message, details, traceId}`; todas
 las respuestas llevan `X-Trace-Id` (se reutiliza el recibido si es un UUID válido).
 
 | Método y ruta | Respuestas |

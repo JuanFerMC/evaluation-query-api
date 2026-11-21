@@ -59,7 +59,7 @@ public class ApachePoiHistorialAdapter implements GeneradorExcelPort {
             for (HistorialSolicitanteExportacion historial : historiales) {
                 Row filaSolicitante = hoja.createRow(numeroFila++);
                 Cell celdaSolicitante = filaSolicitante.createCell(0);
-                celdaSolicitante.setCellValue("Solicitante #" + historial.idSolicitante());
+                celdaSolicitante.setCellValue(historial.nombreSolicitante() + " | ID: " + historial.idSolicitante());
                 celdaSolicitante.setCellStyle(estiloSolicitante);
                 hoja.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(
                         filaSolicitante.getRowNum(), filaSolicitante.getRowNum(), 0, ENCABEZADOS.length - 1));
