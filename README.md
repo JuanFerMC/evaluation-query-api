@@ -116,6 +116,28 @@ La respuesta incluye `evaluaciones`, `pagina`, `tamano`, `totalRegistros` y `tot
 
 ---
 
+## Distribución de evaluaciones por riesgo (US 7.1.1)
+
+`GET /api/v1/reportes/distribucion-riesgo` devuelve la cantidad y el porcentaje de evaluaciones clasificadas como `BAJO`, `MEDIO` y `ALTO`, además de `totalEvaluaciones` y `evaluacionesSinClasificar`. Es exclusivo del rol `ANALISTA_CREDITO`; el administrador recibe 403.
+
+Cada evaluación se cuenta una vez, incluso si un solicitante tiene varias. Se incluyen todos los estados de la saga, también `PENDIENTE`, cuando la categoría ya está persistida. Las evaluaciones históricas sin categoría se informan aparte y no forman parte del total ni de los porcentajes. Los porcentajes se calculan sobre el total clasificado, con dos decimales y redondeo HALF_UP; si no hay evaluaciones, todos son 0.00. Una categoría persistida desconocida se trata como error interno, no se reclasifica.
+
+Ejemplo de respuesta:
+
+```json
+{
+  "totalEvaluaciones": 5,
+  "distribucion": [
+    {"categoria": "BAJO", "cantidad": 2, "porcentaje": 40.00},
+    {"categoria": "MEDIO", "cantidad": 1, "porcentaje": 20.00},
+    {"categoria": "ALTO", "cantidad": 2, "porcentaje": 40.00}
+  ],
+  "evaluacionesSinClasificar": 1
+}
+```
+
+---
+
 ## Exportación de historiales (US 5.2)
 
 Los dos endpoints de exportación reciben un arreglo de identificadores de solicitante y devuelven el documento directamente en la respuesta HTTP. Un arreglo con un solo identificador permite exportar el historial individual; varios identificadores producen un reporte agrupado por solicitante.
