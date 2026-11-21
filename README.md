@@ -37,13 +37,13 @@ pendientes. El [contrato de la proyección](docs/arquitectura/contrato-proyeccio
 
 ## Endpoints
 
-Los endpoints de consulta exigen `Authorization: Bearer <token>` de `auth-api` con rol `ADMINISTRADOR_RIESGO` o
-`ANALISTA_CREDITO` (HU10 CA04). Los endpoints de exportación PDF/Excel son exclusivos de `ANALISTA_CREDITO`. Errores con el formato común `{errorCode, message, details, traceId}`; todas
+Los endpoints de consulta exigen `Authorization: Bearer <token>` de `auth-api`. Las consultas generales admiten `ADMINISTRADOR_RIESGO` y `ANALISTA_CREDITO` (HU10 CA04); el reporte de distribución de riesgo y las exportaciones PDF/Excel son exclusivos de `ANALISTA_CREDITO`. Errores con el formato común `{errorCode, message, details, traceId}`; todas
 las respuestas llevan `X-Trace-Id` (se reutiliza el recibido si es un UUID válido).
 
 | Método y ruta | Respuestas |
 |---|---|
-| `GET /api/v1/evaluaciones` | 200 página del historial filtrado; 400 `VALIDATION_ERROR`; 401 `NO_AUTENTICADO`; 403 `ACCESO_DENEGADO`; 500 `INTERNAL_ERROR` (ambos roles) |\n| `GET /api/v1/evaluaciones/{idEvaluacion}/explicacion` | 200 explicación; 400 `VALIDATION_ERROR`; 401 `NO_AUTENTICADO`; 403 `ACCESO_DENEGADO`; 404 `EVALUACION_NO_ENCONTRADA`; 409 `EVALUACION_PENDIENTE`; 500 `INTERNAL_ERROR` si los datos persistidos son incoherentes |
+| `GET /api/v1/evaluaciones` | 200 página del historial filtrado; 400 `VALIDATION_ERROR`; 401 `NO_AUTENTICADO`; 403 `ACCESO_DENEGADO`; 500 `INTERNAL_ERROR` (ambos roles) |
+| `GET /api/v1/reportes/distribucion-riesgo` | 200 distribución por categoría; 401 `NO_AUTENTICADO`; 403 `ACCESO_DENEGADO`; 500 `INTERNAL_ERROR` (solo `ANALISTA_CREDITO`) |
 | `GET /api/v1/evaluaciones/{idEvaluacion}/recomendaciones` | 200 recomendaciones; 400; 401; 403; 404 `EVALUACION_NO_ENCONTRADA`; 409 `EVALUACION_PENDIENTE` |
 | `GET /api/v1/solicitantes/{idSolicitante}/evaluaciones` | 200 lista (vacía si no tiene evaluaciones); 400; 401; 403; 404 `SOLICITANTE_NO_ENCONTRADO` |
 | `POST /api/v1/evaluaciones/export/pdf` | 200 archivo PDF (`application/pdf`); 400 `VALIDATION_ERROR`; 401 `NO_AUTENTICADO`; 403 `ACCESO_DENEGADO`; 404 `SOLICITANTE_NO_ENCONTRADO`; 500 `INTERNAL_ERROR` |
@@ -116,6 +116,28 @@ La respuesta incluye `evaluaciones`, `pagina`, `tamano`, `totalRegistros` y `tot
 
 ---
 
+## Distribución de evaluaciones por riesgo (US 7.1.1)
+
+`GET /api/v1/reportes/distribucion-riesgo` devuelve la cantidad y el porcentaje de evaluaciones clasificadas como `BAJO`, `MEDIO` y `ALTO`, además de `totalEvaluaciones` y `evaluacionesSinClasificar`. Es exclusivo del rol `ANALISTA_CREDITO`; el administrador recibe 403.
+
+Cada evaluación se cuenta una vez, incluso si un solicitante tiene varias. Se incluyen todos los estados de la saga, también `PENDIENTE`, cuando la categoría ya está persistida. Las evaluaciones históricas sin categoría se informan aparte y no forman parte del total ni de los porcentajes. Los porcentajes se calculan sobre el total clasificado, con dos decimales y redondeo HALF_UP; si no hay evaluaciones, todos son 0.00. Una categoría persistida desconocida se trata como error interno, no se reclasifica.
+
+Ejemplo de respuesta:
+
+```json
+{
+  "totalEvaluaciones": 5,
+  "distribucion": [
+    {"categoria": "BAJO", "cantidad": 2, "porcentaje": 40.00},
+    {"categoria": "MEDIO", "cantidad": 1, "porcentaje": 20.00},
+    {"categoria": "ALTO", "cantidad": 2, "porcentaje": 40.00}
+  ],
+  "evaluacionesSinClasificar": 1
+}
+```
+
+---
+
 ## Exportación de historiales (US 5.2)
 
 Los dos endpoints de exportación reciben un arreglo de identificadores de solicitante y devuelven el documento directamente en la respuesta HTTP. Un arreglo con un solo identificador permite exportar el historial individual; varios identificadores producen un reporte agrupado por solicitante.
@@ -128,7 +150,7 @@ Los dos endpoints de exportación reciben un arreglo de identificadores de solic
 
 `POST /api/v1/evaluaciones/export/excel`
 
-Ambos reciben `Content-Type: application/json` y requieren un JWT de acceso con rol `ADMINISTRADOR_RIESGO` o `ANALISTA_CREDITO`:
+Ambos reciben `Content-Type: application/json` y requieren un JWT de acceso con rol `ANALISTA_CREDITO`:
 
 ```http
 Authorization: Bearer <token>

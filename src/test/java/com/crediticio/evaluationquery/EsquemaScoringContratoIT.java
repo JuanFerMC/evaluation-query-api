@@ -9,6 +9,9 @@ import com.crediticio.evaluationquery.historial.domain.FiltroHistorial;
 import com.crediticio.evaluationquery.historial.domain.Paginacion;
 import com.crediticio.evaluationquery.historial.infrastructure.output.BusquedaHistorialJdbcAdapter;
 import com.crediticio.evaluationquery.historial.infrastructure.output.HistorialEvaluacionesJdbcAdapter;
+import com.crediticio.evaluationquery.reportes.domain.DistribucionRiesgo;
+import com.crediticio.evaluationquery.reportes.infrastructure.output.DistribucionRiesgoJdbcAdapter;
+import com.crediticio.evaluationquery.shared.domain.CategoriaRiesgo;
 import com.crediticio.evaluationquery.recomendaciones.domain.EvaluacionParaRecomendar;
 import com.crediticio.evaluationquery.recomendaciones.domain.FactorEvaluado;
 import com.crediticio.evaluationquery.recomendaciones.domain.GeneracionConcurrenteException;
@@ -92,6 +95,7 @@ class EsquemaScoringContratoIT {
     private static TransactionTemplate soloLectura;
     private static ExplicacionEvaluacionJdbcAdapter explicacionAdapter;
     private static HistorialEvaluacionesJdbcAdapter historialAdapter;
+    private static DistribucionRiesgoJdbcAdapter distribucionAdapter;
     private static BusquedaHistorialJdbcAdapter busquedaAdapter;
     private static EvaluacionParaRecomendarJdbcAdapter evaluacionParaRecomendarAdapter;
     private static RecomendacionesJdbcAdapter recomendacionesAdapter;
@@ -133,6 +137,7 @@ class EsquemaScoringContratoIT {
         NamedParameterJdbcTemplate consultas = new NamedParameterJdbcTemplate(dataSource);
         explicacionAdapter = new ExplicacionEvaluacionJdbcAdapter(consultas);
         historialAdapter = new HistorialEvaluacionesJdbcAdapter(consultas);
+        distribucionAdapter = new DistribucionRiesgoJdbcAdapter(consultas);
         busquedaAdapter = new BusquedaHistorialJdbcAdapter(consultas);
         evaluacionParaRecomendarAdapter = new EvaluacionParaRecomendarJdbcAdapter(consultas);
         recomendacionesAdapter = new RecomendacionesJdbcAdapter(consultas, ESQUEMA);
@@ -291,6 +296,25 @@ class EsquemaScoringContratoIT {
         FiltroHistorial sinCoincidencias = new FiltroHistorial(null, null, "900000202", null);
         assertThat(enSoloLectura(() -> busquedaAdapter.buscar(sinCoincidencias, new Paginacion(0, 20)))).isEmpty();
         assertThat(enSoloLectura(() -> busquedaAdapter.contar(sinCoincidencias))).isZero();
+    }
+
+    // ---- US 7.1.1: distribución por nivel de riesgo ----
+
+    @Test
+    void laDistribucionCuentaCadaEvaluacionPersistidaUnaVezEnPostgresql() {
+        DistribucionRiesgo distribucion = enSoloLectura(distribucionAdapter::contarPorCategoria);
+
+        for (CategoriaRiesgo categoria : CategoriaRiesgo.values()) {
+            assertThat(distribucion.cantidad(categoria)).as(categoria.name()).isEqualTo(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM evaluacion WHERE categoria = ?", Long.class, categoria.name()));
+        }
+        assertThat(distribucion.total()).isEqualTo(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM evaluacion WHERE categoria IS NOT NULL", Long.class));
+        assertThat(distribucion.getSinClasificar()).isEqualTo(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM evaluacion WHERE categoria IS NULL", Long.class));
+        // Incluye la PENDIENTE (categoría ya persistida) y la anterior a HU12 queda fuera del total.
+        assertThat(distribucion.cantidad(CategoriaRiesgo.MEDIO)).isGreaterThanOrEqualTo(3);
+        assertThat(distribucion.getSinClasificar()).isGreaterThanOrEqualTo(1);
     }
 
     // ---- HU14 y estado de la saga (V11 de scoring-api y V1 propia) ----
