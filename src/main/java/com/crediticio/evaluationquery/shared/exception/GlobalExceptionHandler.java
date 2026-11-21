@@ -2,6 +2,7 @@ package com.crediticio.evaluationquery.shared.exception;
 
 import com.crediticio.evaluationquery.explicacion.domain.EvaluacionNoEncontradaException;
 import com.crediticio.evaluationquery.explicacion.domain.ExplicacionInconsistenteException;
+import com.crediticio.evaluationquery.historial.domain.FiltroHistorialInvalidoException;
 import com.crediticio.evaluationquery.historial.domain.SolicitanteNoEncontradoException;
 import com.crediticio.evaluationquery.recomendaciones.domain.CatalogoNoDisponibleException;
 import com.crediticio.evaluationquery.recomendaciones.domain.EvaluacionInexistenteException;
@@ -72,6 +73,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IdentificadorInvalidoException.class)
     public ResponseEntity<ApiError> manejarIdentificadorInvalido(IdentificadorInvalidoException ex) {
         log.warn("Solicitud rechazada por un identificador no positivo");
+        return construirRespuesta(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", ex.getMessage());
+    }
+
+    /** US 5.1.2: rango de fechas invertido o paginación fuera de límites. */
+    @ExceptionHandler(FiltroHistorialInvalidoException.class)
+    public ResponseEntity<ApiError> manejarFiltroHistorialInvalido(FiltroHistorialInvalidoException ex) {
+        log.warn("Búsqueda del historial rechazada por filtros no válidos");
         return construirRespuesta(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", ex.getMessage());
     }
 

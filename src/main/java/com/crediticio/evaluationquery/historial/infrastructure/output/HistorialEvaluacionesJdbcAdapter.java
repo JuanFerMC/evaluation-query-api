@@ -7,7 +7,6 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -48,15 +47,7 @@ public class HistorialEvaluacionesJdbcAdapter implements SolicitanteExistenciaPo
 
     @Override
     public List<EvaluacionHistorica> listarPorSolicitante(long idSolicitante) {
-        return jdbcTemplate.query(CONSULTA_HISTORIAL, parametros(idSolicitante),
-                (fila, numero) -> EvaluacionHistorica.reconstruir(
-                        fila.getLong("id_evaluacion"),
-                        fila.getObject("fecha_evaluacion", LocalDateTime.class),
-                        fila.getObject("score_total", Integer.class),
-                        fila.getInt("suma_detalles"),
-                        fila.getString("categoria"),
-                        fila.getObject("version_politica", Integer.class),
-                        fila.getString("estado")));
+        return jdbcTemplate.query(CONSULTA_HISTORIAL, parametros(idSolicitante), FilaEvaluacionHistorica.MAPEADOR);
     }
 
     private static MapSqlParameterSource parametros(long idSolicitante) {

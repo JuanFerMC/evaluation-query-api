@@ -93,6 +93,8 @@ el frontend puede volver a consultar `GET /api/v1/evaluaciones/{id}` más tarde.
 | `GET /api/v1/evaluaciones/{idEvaluacion}/explicacion` | Ambos | Explicación (HU13); 404 `EVALUACION_NO_ENCONTRADA`; 409 `EVALUACION_PENDIENTE` |
 | `GET /api/v1/evaluaciones/{idEvaluacion}/recomendaciones` | Ambos | Recomendaciones (HU14); 404 `EVALUACION_NO_ENCONTRADA`; 409 `EVALUACION_PENDIENTE`; `generadas: false` y lista vacía en evaluaciones anteriores a la saga |
 | `GET /api/v1/solicitantes/{idSolicitante}/evaluaciones` | Ambos | Historial (HU15) sin las PENDIENTE; 404 `SOLICITANTE_NO_ENCONTRADO`; `[]` si no tiene evaluaciones |
+| `GET /api/v1/evaluaciones` | Ambos | Historial filtrado (US 5.1.2): `fechaDesde`, `fechaHasta` (`aaaa-mm-dd`), `numeroDocumento`, `categoria` (`BAJO`/`MEDIO`/`ALTO`), `pagina` (desde 0), `tamano` (1–100); responde `{evaluaciones, pagina, tamano, totalRegistros, totalPaginas}`; sin coincidencias, `evaluaciones: []` y `totalRegistros: 0` (el frontend muestra "No se encontraron evaluaciones registradas para los filtros seleccionados"); 400 `VALIDATION_ERROR` |
+| `GET /api/v1/reportes/distribucion-riesgo` | Ambos | Distribución (US 7.1.1) para el gráfico de pastel o barras: `{totalEvaluaciones, distribucion: [{categoria, cantidad, porcentaje}] (BAJO, MEDIO, ALTO), evaluacionesSinClasificar}`; cuenta evaluaciones, no solicitantes; todo en 0 si no hay evaluaciones; se recalcula en cada consulta |
 
 Formatos de respuesta en el README de `evaluation-query-api`. Cada elemento del historial incluye `estado` y,
 en `explicacion` y `recomendaciones`, las rutas relativas para consultarlas (se resuelven contra la URL base de

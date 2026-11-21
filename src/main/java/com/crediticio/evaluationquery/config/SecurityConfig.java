@@ -52,6 +52,12 @@ public class SecurityConfig {
                                 .hasAnyRole(JwtConfig.ROL_ADMINISTRADOR, JwtConfig.ROL_ANALISTA)
                         .requestMatchers(HttpMethod.GET, "/api/v1/solicitantes/*/evaluaciones")
                                 .hasAnyRole(JwtConfig.ROL_ADMINISTRADOR, JwtConfig.ROL_ANALISTA)
+                        // US 5.1.2: historial filtrado (solo la colección; /api/v1/evaluaciones/{id} sigue denegado)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/evaluaciones")
+                                .hasAnyRole(JwtConfig.ROL_ADMINISTRADOR, JwtConfig.ROL_ANALISTA)
+                        // US 7.1.1: "directivo" = ADMINISTRADOR_RIESGO (no existe otro rol; decisión del 2026-11-20)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/reportes/distribucion-riesgo")
+                                .hasAnyRole(JwtConfig.ROL_ADMINISTRADOR, JwtConfig.ROL_ANALISTA)
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         .requestMatchers(RUTAS_SWAGGER).access((autenticacion, contexto) ->
                                 new AuthorizationDecision(swaggerHabilitado))

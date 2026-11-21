@@ -5,6 +5,9 @@ import com.crediticio.evaluationquery.explicacion.domain.FactorAplicado;
 import com.crediticio.evaluationquery.explicacion.domain.OrigenPuntaje;
 import com.crediticio.evaluationquery.explicacion.infrastructure.output.ExplicacionEvaluacionJdbcAdapter;
 import com.crediticio.evaluationquery.historial.domain.EvaluacionHistorica;
+import com.crediticio.evaluationquery.historial.domain.FiltroHistorial;
+import com.crediticio.evaluationquery.historial.domain.Paginacion;
+import com.crediticio.evaluationquery.historial.infrastructure.output.BusquedaHistorialJdbcAdapter;
 import com.crediticio.evaluationquery.historial.infrastructure.output.HistorialEvaluacionesJdbcAdapter;
 import com.crediticio.evaluationquery.recomendaciones.domain.EvaluacionParaRecomendar;
 import com.crediticio.evaluationquery.recomendaciones.domain.FactorEvaluado;
@@ -14,6 +17,9 @@ import com.crediticio.evaluationquery.recomendaciones.domain.RecomendacionGenera
 import com.crediticio.evaluationquery.recomendaciones.domain.TipoActivacion;
 import com.crediticio.evaluationquery.recomendaciones.infrastructure.output.EvaluacionParaRecomendarJdbcAdapter;
 import com.crediticio.evaluationquery.recomendaciones.infrastructure.output.RecomendacionesJdbcAdapter;
+import com.crediticio.evaluationquery.reportes.domain.DistribucionRiesgo;
+import com.crediticio.evaluationquery.reportes.infrastructure.output.DistribucionRiesgoJdbcAdapter;
+import com.crediticio.evaluationquery.shared.domain.CategoriaRiesgo;
 import com.crediticio.evaluationquery.support.DatosScoringPrueba;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -89,6 +95,8 @@ class EsquemaScoringContratoIT {
     private static TransactionTemplate soloLectura;
     private static ExplicacionEvaluacionJdbcAdapter explicacionAdapter;
     private static HistorialEvaluacionesJdbcAdapter historialAdapter;
+    private static BusquedaHistorialJdbcAdapter busquedaAdapter;
+    private static DistribucionRiesgoJdbcAdapter distribucionAdapter;
     private static EvaluacionParaRecomendarJdbcAdapter evaluacionParaRecomendarAdapter;
     private static RecomendacionesJdbcAdapter recomendacionesAdapter;
 
@@ -129,6 +137,8 @@ class EsquemaScoringContratoIT {
         NamedParameterJdbcTemplate consultas = new NamedParameterJdbcTemplate(dataSource);
         explicacionAdapter = new ExplicacionEvaluacionJdbcAdapter(consultas);
         historialAdapter = new HistorialEvaluacionesJdbcAdapter(consultas);
+        busquedaAdapter = new BusquedaHistorialJdbcAdapter(consultas);
+        distribucionAdapter = new DistribucionRiesgoJdbcAdapter(consultas);
         evaluacionParaRecomendarAdapter = new EvaluacionParaRecomendarJdbcAdapter(consultas);
         recomendacionesAdapter = new RecomendacionesJdbcAdapter(consultas, ESQUEMA);
         DatosScoringPrueba datos = new DatosScoringPrueba(jdbcTemplate);
@@ -260,6 +270,50 @@ class EsquemaScoringContratoIT {
         assertThat(enSoloLectura(() -> historialAdapter.existe(idSolicitanteSinEvaluaciones))).isTrue();
         assertThat(enSoloLectura(() -> historialAdapter.listarPorSolicitante(idSolicitanteSinEvaluaciones))).isEmpty();
         assertThat(enSoloLectura(() -> historialAdapter.existe(Long.MAX_VALUE))).isFalse();
+    }
+
+    // ---- US 5.1.2: historial filtrado y paginado ----
+
+    @Test
+    void laBusquedaFiltradaYSuConteoUsanLosMismosFiltrosEnPostgresql() {
+        FiltroHistorial filtro = new FiltroHistorial(FECHA.toLocalDate(), FECHA.toLocalDate().plusDays(1),
+                " 900000201 ", CategoriaRiesgo.MEDIO);
+
+        assertThat(enSoloLectura(() -> busquedaAdapter.buscar(filtro, new Paginacion(0, 20))))
+                .extracting(EvaluacionHistorica::getIdEvaluacion)
+                .containsExactly(idMismaFecha, idClasificada); // la PENDIENTE del día siguiente no aparece
+        assertThat(enSoloLectura(() -> busquedaAdapter.contar(filtro))).isEqualTo(2);
+        assertThat(enSoloLectura(() -> busquedaAdapter.buscar(filtro, new Paginacion(1, 1))))
+                .extracting(EvaluacionHistorica::getIdEvaluacion).containsExactly(idClasificada);
+
+        FiltroHistorial sinClasificar = new FiltroHistorial(null, FECHA.toLocalDate().minusDays(9), "900000201", null);
+        List<EvaluacionHistorica> anteriores = enSoloLectura(() -> busquedaAdapter.buscar(sinClasificar,
+                new Paginacion(0, 20)));
+        assertThat(anteriores).extracting(EvaluacionHistorica::getIdEvaluacion).containsExactly(idAnteriorAHu12);
+        assertThat(anteriores.get(0).getScoreTotal()).isEqualTo(20);
+
+        FiltroHistorial sinCoincidencias = new FiltroHistorial(null, null, "900000202", null);
+        assertThat(enSoloLectura(() -> busquedaAdapter.buscar(sinCoincidencias, new Paginacion(0, 20)))).isEmpty();
+        assertThat(enSoloLectura(() -> busquedaAdapter.contar(sinCoincidencias))).isZero();
+    }
+
+    // ---- US 7.1.1: distribución por nivel de riesgo ----
+
+    @Test
+    void laDistribucionCuentaCadaEvaluacionPersistidaUnaVezEnPostgresql() {
+        DistribucionRiesgo distribucion = enSoloLectura(distribucionAdapter::contarPorCategoria);
+
+        for (CategoriaRiesgo categoria : CategoriaRiesgo.values()) {
+            assertThat(distribucion.cantidad(categoria)).as(categoria.name()).isEqualTo(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM evaluacion WHERE categoria = ?", Long.class, categoria.name()));
+        }
+        assertThat(distribucion.total()).isEqualTo(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM evaluacion WHERE categoria IS NOT NULL", Long.class));
+        assertThat(distribucion.getSinClasificar()).isEqualTo(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM evaluacion WHERE categoria IS NULL", Long.class));
+        // incluye la PENDIENTE (categoría ya persistida) y la anterior a HU12 queda fuera del total
+        assertThat(distribucion.cantidad(CategoriaRiesgo.MEDIO)).isGreaterThanOrEqualTo(3);
+        assertThat(distribucion.getSinClasificar()).isGreaterThanOrEqualTo(1);
     }
 
     // ---- HU14 y estado de la saga (V11 de scoring-api y V1 propia) ----

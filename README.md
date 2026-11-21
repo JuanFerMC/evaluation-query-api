@@ -36,6 +36,8 @@ las respuestas llevan `X-Trace-Id` (se reutiliza el recibido si es un UUID váli
 | `GET /api/v1/evaluaciones/{idEvaluacion}/explicacion` | 200 explicación; 400 `VALIDATION_ERROR`; 401 `NO_AUTENTICADO`; 403 `ACCESO_DENEGADO`; 404 `EVALUACION_NO_ENCONTRADA`; 409 `EVALUACION_PENDIENTE`; 500 `INTERNAL_ERROR` si los datos persistidos son incoherentes |
 | `GET /api/v1/evaluaciones/{idEvaluacion}/recomendaciones` | 200 recomendaciones; 400; 401; 403; 404 `EVALUACION_NO_ENCONTRADA`; 409 `EVALUACION_PENDIENTE` |
 | `GET /api/v1/solicitantes/{idSolicitante}/evaluaciones` | 200 lista (vacía si no tiene evaluaciones); 400; 401; 403; 404 `SOLICITANTE_NO_ENCONTRADO` |
+| `GET /api/v1/evaluaciones?fechaDesde&fechaHasta&numeroDocumento&categoria&pagina&tamano` | 200 página del historial filtrado (vacía y con total 0 si nada coincide); 400 `VALIDATION_ERROR`; 401; 403 |
+| `GET /api/v1/reportes/distribucion-riesgo` | 200 distribución de evaluaciones por nivel de riesgo (todo en 0 si no hay evaluaciones); 401; 403; 500 `INTERNAL_ERROR` |
 | `PUT /internal/v1/evaluaciones/{idEvaluacion}/recomendaciones` | **Interna**: solo existe con la saga habilitada y solo la autoriza el token de servicio S1 (ningún token de usuario). 201 generada; 200 ya existía (reintento); 401; 404; 409 `EVALUACION_NO_PENDIENTE`; 503 `CATALOGO_NO_DISPONIBLE`. No forma parte del contrato del frontend ni aparece en Swagger |
 | `GET /actuator/health` | Público, sin detalles |
 | `GET /v3/api-docs`, `/swagger-ui.html` | Solo con el perfil `dev` (`-Dspring-boot.run.profiles=dev`); si no, 401 |
@@ -95,6 +97,56 @@ las evaluaciones PENDIENTE (CA08); `estado` es `COMPLETADA` o `null` (anterior a
     "recomendaciones": "/api/v1/evaluaciones/101/recomendaciones" }
 ]
 ```
+
+Historial filtrado (US 5.1.2), sobre todas las evaluaciones, con el mismo orden y la misma exclusión de las
+PENDIENTE. Todos los parámetros son opcionales y se combinan con AND:
+
+| Parámetro | Formato | Regla |
+|---|---|---|
+| `fechaDesde` / `fechaHasta` | `aaaa-mm-dd` | Días completos e inclusivos sobre `fecha_evaluacion` (sin conversión de zona); `fechaDesde` posterior a `fechaHasta` responde 400 |
+| `numeroDocumento` | texto | Documento del solicitante (no su identificador), coincidencia exacta tras recortar espacios; vacío no filtra |
+| `categoria` | `BAJO`, `MEDIO` o `ALTO` | Nivel de riesgo persistido; otro valor responde 400. Las evaluaciones sin clasificar no coinciden |
+| `pagina` / `tamano` | enteros | Página desde 0 (por defecto 0); tamaño de 1 a 100 (por defecto 20) |
+
+`GET /api/v1/evaluaciones?fechaDesde=2026-11-01&fechaHasta=2026-11-30&categoria=ALTO&pagina=0&tamano=20`:
+
+```json
+{
+  "evaluaciones": [ { "idEvaluacion": 205, "fechaEvaluacion": "2026-11-30T18:20:00", "...": "mismo formato que HU15" } ],
+  "pagina": 0,
+  "tamano": 20,
+  "totalRegistros": 1,
+  "totalPaginas": 1
+}
+```
+
+`totalRegistros` cuenta todas las coincidencias, no solo las de la página. Sin coincidencias la respuesta es 200
+con `evaluaciones: []`, `totalRegistros: 0` y `totalPaginas: 0`.
+
+Distribución por nivel de riesgo (US 7.1.1), `GET /api/v1/reportes/distribucion-riesgo`, sin parámetros:
+
+```json
+{
+  "totalEvaluaciones": 120,
+  "distribucion": [
+    { "categoria": "BAJO", "cantidad": 54, "porcentaje": 45.00 },
+    { "categoria": "MEDIO", "cantidad": 41, "porcentaje": 34.17 },
+    { "categoria": "ALTO", "cantidad": 25, "porcentaje": 20.83 }
+  ],
+  "evaluacionesSinClasificar": 3
+}
+```
+
+- La unidad de conteo es la **evaluación** (no el solicitante): un solicitante con varias evaluaciones aporta una
+  por cada una. Se cuentan las evaluaciones con categoría persistida en cualquier estado de la saga (también las
+  PENDIENTE, cuya categoría ya está guardada), para que una evaluación nueva aparezca en la consulta siguiente.
+- `distribucion` trae siempre BAJO, MEDIO y ALTO en ese orden; `totalEvaluaciones` es exactamente la suma de sus
+  cantidades. Las evaluaciones anteriores a HU12, sin categoría, se informan en `evaluacionesSinClasificar` y no
+  entran en el total ni en los porcentajes.
+- Porcentaje = cantidad × 100 / total, con dos decimales (redondeo HALF_UP); la suma puede diferir de 100 en
+  ±0,01. Sin evaluaciones todo es 0. Se calcula en cada consulta con un único `GROUP BY` en la base, sin caché.
+- Una categoría persistida distinta de BAJO/MEDIO/ALTO, o un fallo de la base, responde 500 `INTERNAL_ERROR`.
+- Roles: `ADMINISTRADOR_RIESGO` (rol directivo de la HU) y `ANALISTA_CREDITO`.
 
 - Las reglas se muestran con la instantánea guardada al evaluar (operador, valor y puntaje), no con su valor
   actual. La contribución es 0 cuando la condición no se cumplió.
