@@ -86,7 +86,7 @@ Sin política vigente, `POST /api/v1/evaluaciones` responde 409 `POLITICA_VIGENT
 anteriores a la saga. Una evaluación PENDIENTE pasa sola a COMPLETADA cuando el reenvío programado lo consigue:
 el frontend puede volver a consultar `GET /api/v1/evaluaciones/{id}` más tarde.
 
-### evaluation-query-api (8082)
+### evaluation-query-api (8082)\n\n| `GET /api/v1/evaluaciones` | Ambos | Historial filtrado y paginado (US 5.1.2); filtros opcionales `fechaDesde`, `fechaHasta`, `numeroDocumento`, `categoria`; `pagina` desde 0 y `tamano` de 1 a 100. Excluye `PENDIENTE`; incluye `totalRegistros` y `totalPaginas` |\n
 
 | Método y ruta | Roles | Respuesta |
 |---|---|---|
