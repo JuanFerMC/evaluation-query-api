@@ -84,7 +84,7 @@ class ExportacionHistorialControllerIT {
     void exportacionPdfDebeResponderArchivoBinarioConEncabezadosCorrectos() throws Exception {
         byte[] pdf = "%PDF-1.7 contenido de prueba".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
         List<HistorialSolicitanteExportacion> historiales =
-                List.of(new HistorialSolicitanteExportacion(101L, List.of()));
+                List.of(new HistorialSolicitanteExportacion(101L, "Solicitante 101L", List.of()));
         when(consulta.consultar(List.of(101L))).thenReturn(historiales);
         when(generadorPdf.generar(historiales)).thenReturn(pdf);
 
@@ -109,12 +109,12 @@ class ExportacionHistorialControllerIT {
     void exportacionExcelDebeResponderArchivoBinarioConEncabezadosCorrectos() throws Exception {
         byte[] xlsx = new byte[]{'P', 'K', 3, 4, 10, 20, 30};
         List<HistorialSolicitanteExportacion> historiales =
-                List.of(new HistorialSolicitanteExportacion(202L, List.of()));
+                List.of(new HistorialSolicitanteExportacion(202L, "Solicitante 202L", List.of()));
         when(consulta.consultar(List.of(202L))).thenReturn(historiales);
         when(generadorExcel.generar(historiales)).thenReturn(xlsx);
 
         mockMvc.perform(post("/api/v1/evaluaciones/export/excel")
-                        .header(HttpHeaders.AUTHORIZATION, tokenAdministrador)
+                        .header(HttpHeaders.AUTHORIZATION, tokenAnalista)
                         .contentType(MediaType.APPLICATION_JSON)
                         .accept("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                         .content("{\"solicitanteIds\":[202]}"))
