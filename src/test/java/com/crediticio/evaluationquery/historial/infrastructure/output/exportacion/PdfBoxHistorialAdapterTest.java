@@ -24,8 +24,8 @@ class PdfBoxHistorialAdapterTest {
     @Test
     void debeGenerarPdfConEvaluacionesAgrupadasPorSolicitante() throws Exception {
         var historial = List.of(
-                new HistorialSolicitanteExportacion(101L, List.of(evaluacion(9001L))),
-                new HistorialSolicitanteExportacion(202L, List.of()));
+                new HistorialSolicitanteExportacion(101L, "Solicitante 101L", List.of(evaluacion(9001L))),
+                new HistorialSolicitanteExportacion(202L, "Solicitante 202L", List.of()));
 
         byte[] archivo = adapter.generar(historial);
 
@@ -33,11 +33,11 @@ class PdfBoxHistorialAdapterTest {
         try (var documento = Loader.loadPDF(archivo)) {
             String texto = new PDFTextStripper().getText(documento);
             assertThat(texto).contains("Historial de evaluaciones", "CREDIT-COMPASS",
-                    "SOLICITANTE  #101", "Evaluación #9001", "Fecha: 16/11/2026 10:30",
+                    "Solicitante 101", "Evaluación #9001", "Fecha: 16/11/2026 10:30",
                     "Puntaje total: 720", "Origen: CALCULADO", "Clasificada: Sí",
                     "Categoría: BAJO_RIESGO", "Versión de política: 3", "Estado: COMPLETADA",
                     "Ruta de explicación:", "Ruta de recomendaciones:",
-                    "SOLICITANTE  #202", "Este solicitante no tiene evaluaciones registradas.");
+                    "Solicitante 202", "Este solicitante no tiene evaluaciones registradas.");
         }
     }
 
@@ -78,7 +78,7 @@ class PdfBoxHistorialAdapterTest {
                 9401L, LocalDateTime.of(2026, 11, 16, 10, 30),
                 650, "CALCULADO", true, "RIESGO_MEDIO", 4, "COMPLETADA",
                 rutaLarga, "/recomendaciones/9401");
-        var historiales = List.of(new HistorialSolicitanteExportacion(404L, List.of(evaluacion)));
+        var historiales = List.of(new HistorialSolicitanteExportacion(404L, "Solicitante 404L", List.of(evaluacion)));
 
         byte[] archivo = adapter.generar(historiales);
 
@@ -92,7 +92,7 @@ class PdfBoxHistorialAdapterTest {
     @Test
     void debeRepetirElEncabezadoVisualAlCrearPaginasAdicionales() throws Exception {
         var historiales = IntStream.rangeClosed(1, 30)
-                .mapToObj(id -> new HistorialSolicitanteExportacion(id, List.of()))
+                .mapToObj(id -> new HistorialSolicitanteExportacion(id, "Solicitante " + id, List.of()))
                 .toList();
 
         byte[] archivo = adapter.generar(historiales);
@@ -101,7 +101,7 @@ class PdfBoxHistorialAdapterTest {
             String texto = new PDFTextStripper().getText(documento);
             assertThat(documento.getNumberOfPages()).isGreaterThan(1);
             assertThat(texto).contains("CREDIT-COMPASS  |  Historial de evaluaciones");
-            assertThat(texto).contains("SOLICITANTE  #30");
+            assertThat(texto).contains("Solicitante 30");
         }
     }
 
@@ -113,7 +113,7 @@ class PdfBoxHistorialAdapterTest {
                 PDPageContentStream::new);
 
         assertThatThrownBy(() -> adaptador.generar(
-                List.of(new HistorialSolicitanteExportacion(101L, List.of()))))
+                List.of(new HistorialSolicitanteExportacion(101L, "Solicitante 101L", List.of()))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("No fue posible generar el reporte PDF")
                 .hasCauseInstanceOf(IOException.class);
@@ -126,7 +126,7 @@ class PdfBoxHistorialAdapterTest {
                 (documento, pagina) -> { throw new IOException("fallo de pagina simulado"); });
 
         assertThatThrownBy(() -> adaptador.generar(
-                List.of(new HistorialSolicitanteExportacion(101L, List.of()))))
+                List.of(new HistorialSolicitanteExportacion(101L, "Solicitante 101L", List.of()))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("No fue posible preparar una página del reporte")
                 .hasCauseInstanceOf(IOException.class);
