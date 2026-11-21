@@ -15,9 +15,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Contrato OpenAPI de evaluation-query-api (mismo patrón que scoring-api): los endpoints de negocio exigen un
- * JWT de acceso emitido por auth-api (esquema bearerAuth) y pueden responder 401/403 con el formato ApiError.
- * Solo se publica con el perfil dev.
+ * Contrato OpenAPI de evaluation-query-api: documenta consultas, reportes y exportaciones del historial.
+ * Los endpoints de negocio exigen un JWT de acceso emitido por auth-api (esquema bearerAuth) y pueden
+ * responder 401/403 con el formato ApiError. Solo se publica con el perfil dev.
  */
 @Configuration
 public class OpenApiConfig {
@@ -31,8 +31,14 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("evaluation-query-api - Motor de Scoring de Riesgo Crediticio")
                         .version("v1")
-                        .description("Explicación de una evaluación (HU13) e historial de evaluaciones de un "
-                                + "solicitante (HU15). Requiere un JWT de acceso emitido por auth-api."))
+                        .description("API de consulta y reportes del motor de riesgo crediticio: explicación de "
+                                + "evaluaciones (HU13), recomendaciones (HU14), historial por solicitante (HU15), "
+                                + "búsqueda filtrada y paginada (US 5.1.2), distribución de riesgo (US 7.1.1) y "
+                                + "exportación de historiales a PDF y Excel (US 5.2.1 y US 5.2.2). "
+                                + "Las exportaciones y la distribución de riesgo son exclusivas de "
+                                + "ANALISTA_CREDITO; el historial admite ADMINISTRADOR_RIESGO y ANALISTA_CREDITO. "
+                                + "Requiere un JWT de acceso emitido por auth-api. "
+                                + "El contrato detallado de exportación está en docs/api/exportacion-historial.md."))
                 .components(new Components().addSecuritySchemes(ESQUEMA_SEGURIDAD, new SecurityScheme()
                         .type(SecurityScheme.Type.HTTP)
                         .scheme("bearer")
