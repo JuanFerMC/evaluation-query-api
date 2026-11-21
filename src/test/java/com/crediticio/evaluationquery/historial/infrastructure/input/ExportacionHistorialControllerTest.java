@@ -47,7 +47,7 @@ class ExportacionHistorialControllerTest {
     @Test
     void debeRetornarPdfComoArchivoAdjunto() {
         var solicitud = new SolicitudExportacionHistorial(List.of(101L, 202L));
-        var historiales = List.of(new HistorialSolicitanteExportacion(101L, List.of()));
+        var historiales = List.of(new HistorialSolicitanteExportacion(101L, "Solicitante 101", List.of()));
         byte[] archivo = "%PDF-test".getBytes();
 
         when(consulta.consultar(solicitud.solicitanteIds())).thenReturn(historiales);
