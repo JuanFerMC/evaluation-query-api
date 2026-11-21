@@ -132,6 +132,19 @@ class ExportacionHistorialControllerIT {
     }
 
     @Test
+    void administradorDebeRecibir403EnExportacionSinInvocarGeneradores() throws Exception {
+        mockMvc.perform(post("/api/v1/evaluaciones/export/pdf")
+                        .header(HttpHeaders.AUTHORIZATION, tokenAdministrador)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"solicitanteIds\":[101]}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("ACCESO_DENEGADO"));
+
+        verify(consulta, never()).consultar(anyList());
+        verify(generadorPdf, never()).generar(anyList());
+    }
+
+    @Test
     void jsonVacioDebeResponder400SinConsultarNiGenerar() throws Exception {
         mockMvc.perform(post("/api/v1/evaluaciones/export/pdf")
                         .header(HttpHeaders.AUTHORIZATION, tokenAnalista)
