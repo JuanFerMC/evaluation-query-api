@@ -195,7 +195,8 @@
                                     <groupId>org.projectlombok</groupId>
                                     <artifactId>lombok</artifactId>
                                 </path>
-                            </configuration>
+                            </annotationProcessorPaths>
+                        </configuration>
                         </execution>
                 </executions>
             </plugin>
