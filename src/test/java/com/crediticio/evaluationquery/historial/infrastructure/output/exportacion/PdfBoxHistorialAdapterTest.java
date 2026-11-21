@@ -24,8 +24,8 @@ class PdfBoxHistorialAdapterTest {
     @Test
     void debeGenerarPdfConEvaluacionesAgrupadasPorSolicitante() throws Exception {
         var historial = List.of(
-                new HistorialSolicitanteExportacion(101L, "Solicitante 101L", List.of(evaluacion(9001L))),
-                new HistorialSolicitanteExportacion(202L, "Solicitante 202L", List.of()));
+                new HistorialSolicitanteExportacion(101L, "Solicitante 101", List.of(evaluacion(9001L))),
+                new HistorialSolicitanteExportacion(202L, "Solicitante 202", List.of()));
 
         byte[] archivo = adapter.generar(historial);
 
@@ -33,7 +33,7 @@ class PdfBoxHistorialAdapterTest {
         try (var documento = Loader.loadPDF(archivo)) {
             String texto = new PDFTextStripper().getText(documento);
             assertThat(texto).contains("Historial de evaluaciones", "CREDIT-COMPASS",
-                    "Solicitante 101", "Evaluación #9001", "Fecha: 16/11/2026 10:30",
+                    "Solicitante 101", "ID: 101", "Evaluación #9001", "Fecha: 16/11/2026 10:30",
                     "Puntaje total: 720", "Origen: CALCULADO", "Clasificada: Sí",
                     "Categoría: BAJO_RIESGO", "Versión de política: 3", "Estado: COMPLETADA",
                     "Ruta de explicación:", "Ruta de recomendaciones:",
@@ -58,7 +58,7 @@ class PdfBoxHistorialAdapterTest {
         var evaluaciones = IntStream.rangeClosed(1, 8)
                 .mapToObj(id -> evaluacionConDatosOpcionales(9100L + id))
                 .toList();
-        var historiales = List.of(new HistorialSolicitanteExportacion(303L, evaluaciones));
+        var historiales = List.of(new HistorialSolicitanteExportacion(303L, "Solicitante 303", evaluaciones));
 
         byte[] archivo = adapter.generar(historiales);
 
