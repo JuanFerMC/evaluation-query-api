@@ -33,6 +33,7 @@ class ConsultarHistorialExportacionServiceTest {
         assertThat(consultados).containsExactly(10L);
         assertThat(resultado).hasSize(1);
         assertThat(resultado.get(0).idSolicitante()).isEqualTo(10L);
+        assertThat(resultado.get(0).nombreSolicitante()).isEqualTo("Solicitante 10");
         assertThat(resultado.get(0).evaluaciones()).isEmpty();
     }
 
@@ -52,8 +53,10 @@ class ConsultarHistorialExportacionServiceTest {
         assertThat(resultado)
                 .extracting(HistorialSolicitanteExportacion::idSolicitante)
                 .containsExactly(10L, 20L, 30L);
-        assertThat(resultado).allSatisfy(
-                historial -> assertThat(historial.evaluaciones()).isEmpty());
+        assertThat(resultado).allSatisfy(historial -> {
+            assertThat(historial.nombreSolicitante()).isEqualTo("Solicitante " + historial.idSolicitante());
+            assertThat(historial.evaluaciones()).isEmpty();
+        });
     }
 
     @Test
