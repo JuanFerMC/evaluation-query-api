@@ -48,6 +48,7 @@ class OpenApiContratoTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.paths['/api/v1/evaluaciones/{idEvaluacion}/explicacion'].get").exists())
                     .andExpect(jsonPath("$.paths['/api/v1/solicitantes/{idSolicitante}/evaluaciones'].get").exists())
+                    .andExpect(jsonPath("$.paths['/api/v1/reportes/distribucion-riesgo'].get").exists())
                     .andExpect(jsonPath("$.paths['/api/v1/evaluaciones/{idEvaluacion}/explicacion'].get.responses['401']")
                             .exists())
                     .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"))
