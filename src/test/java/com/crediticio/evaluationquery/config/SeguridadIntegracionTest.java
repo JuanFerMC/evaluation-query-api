@@ -21,6 +21,8 @@ import java.nio.file.Path;
 import java.security.KeyPair;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
 
@@ -55,10 +57,19 @@ class SeguridadIntegracionTest {
     static void configurarClavePublica(DynamicPropertyRegistry registro) {
         registro.add("evaluationquery.jwt.clave-publica",
                 () -> "file:" + ClavesRsaPrueba.escribirClavePublica(CLAVES, directorioClaves));
+        registro.add("evaluationquery.metrics.enabled", () -> true);
+        registro.add("evaluationquery.metrics.username", () -> "prometheus-test");
+        registro.add("evaluationquery.metrics.password", () -> "prometheus-test-password");
     }
 
     @Autowired
     private MockMvc mockMvc;
+
+    private static String basicMetrics() {
+        String credenciales = Base64.getEncoder().encodeToString(
+                "prometheus-test:prometheus-test-password".getBytes(StandardCharsets.UTF_8));
+        return "Basic " + credenciales;
+    }
 
     private static String bearer(String rol) {
         return "Bearer " + TokensPrueba.firmar(CLAVES, TokensPrueba.claimsValidos(EMISOR, rol).build());
@@ -136,6 +147,35 @@ class SeguridadIntegracionTest {
                 .andExpect(jsonPath("$.status").exists())
                 .andExpect(jsonPath("$.components").doesNotExist())
                 .andExpect(jsonPath("$.details").doesNotExist());
+    }
+
+    @Test
+    void prometheusDebeRechazarAccesoAnonimo() throws Exception {
+        mockMvc.perform(get("/actuator/prometheus"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void prometheusDebeAceptarSoloCredencialesBasicDeLaCuentaTecnica() throws Exception {
+        mockMvc.perform(get("/actuator/prometheus")
+                        .header(HttpHeaders.AUTHORIZATION, basicMetrics()))
+                .andExpect(status().isOk())
+                .andExpect(result -> assertThat(result.getResponse().getContentAsString())
+                        .contains("# HELP"));
+    }
+
+    @Test
+    void prometheusNoDebeAceptarJwtDeUsuarioComoCredencialDeScrape() throws Exception {
+        mockMvc.perform(get("/actuator/prometheus")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(JwtConfig.ROL_ANALISTA)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void prometheusDebeDenegarMetodosDistintosDeGet() throws Exception {
+        mockMvc.perform(post("/actuator/prometheus")
+                        .header(HttpHeaders.AUTHORIZATION, basicMetrics()))
+                .andExpect(status().isForbidden());
     }
 
     @Test
