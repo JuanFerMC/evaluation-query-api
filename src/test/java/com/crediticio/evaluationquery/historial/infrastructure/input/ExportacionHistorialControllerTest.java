@@ -151,4 +151,27 @@ class ExportacionHistorialControllerTest {
                 .andExpect(jsonPath("$.message").value("IDs inválidos"));
     }
 
+    // Fase 2 (refinamiento de API): errores de formato del cliente no deben responder 500.
+
+    @Test
+    void debeRetornar415CuandoElContentTypeNoEsJson() throws Exception {
+        mockMvc.perform(post("/api/v1/evaluaciones/export/pdf")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("101"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.errorCode").value("UNSUPPORTED_MEDIA_TYPE"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .string("Accept", org.hamcrest.Matchers.containsString("application/json")));
+        verify(consulta, never()).consultar(org.mockito.ArgumentMatchers.anyList());
+    }
+
+    @Test
+    void debeRetornar406CuandoElClienteNoAceptaElFormatoDelArchivo() throws Exception {
+        mockMvc.perform(post("/api/v1/evaluaciones/export/pdf")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .content("{\"solicitanteIds\":[101]}"))
+                .andExpect(status().isNotAcceptable());
+        verify(consulta, never()).consultar(org.mockito.ArgumentMatchers.anyList());
+    }
 }

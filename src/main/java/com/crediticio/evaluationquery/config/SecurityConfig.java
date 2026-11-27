@@ -3,6 +3,7 @@ package com.crediticio.evaluationquery.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -40,6 +41,7 @@ public class SecurityConfig {
     private boolean swaggerHabilitado;
 
     @Bean
+    @Order(2)
     @SuppressWarnings("java:S4502")
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         RespuestaSeguridadJson respuestas = new RespuestaSeguridadJson();
@@ -87,7 +89,8 @@ public class SecurityConfig {
                 .toList());
         configuration.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Content-Type", "Accept", "Authorization", "X-Trace-Id"));
-        configuration.setExposedHeaders(List.of("X-Trace-Id"));
+        // Content-Disposition: el frontend puede leer el nombre del archivo de la exportación PDF/Excel.
+        configuration.setExposedHeaders(List.of("X-Trace-Id", "Content-Disposition"));
         // La API no utiliza cookies de autenticación ni credenciales automáticas del navegador.
         configuration.setAllowCredentials(false);
         configuration.setMaxAge(3600L);
