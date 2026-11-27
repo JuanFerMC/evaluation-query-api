@@ -14,11 +14,15 @@ import com.crediticio.evaluationquery.shared.response.ApiError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
@@ -134,6 +138,31 @@ public class GlobalExceptionHandler {
         log.warn("Solicitud rechazada por un parámetro con formato inválido");
         return construirRespuesta(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR",
                 "El parámetro '" + ex.getName() + "' tiene un formato inválido");
+    }
+
+    /** Content-Type no soportado (p. ej. text/plain en la exportación): error del cliente, 415 y no 500. */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiError> manejarTipoDeContenidoNoSoportado(HttpMediaTypeNotSupportedException ex) {
+        log.warn("Solicitud rechazada por Content-Type no soportado");
+        List<String> admitidos = ex.getSupportedMediaTypes().stream().map(MediaType::toString).toList();
+        HttpHeaders headers = new HttpHeaders();
+        if (!ex.getSupportedMediaTypes().isEmpty()) {
+            headers.setAccept(ex.getSupportedMediaTypes());
+        }
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).headers(headers).body(
+                new ApiError("UNSUPPORTED_MEDIA_TYPE", "El tipo de contenido de la solicitud no está soportado",
+                        admitidos, MDC.get("traceId")));
+    }
+
+    /**
+     * El encabezado Accept no admite ningún tipo que el endpoint pueda producir (p. ej. Accept: application/json
+     * en la exportación PDF): 406 y no 500. Sin cuerpo, porque el cliente puede no aceptar JSON; el traceId
+     * viaja en X-Trace-Id.
+     */
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<Void> manejarTipoDeRespuestaNoAceptable(HttpMediaTypeNotAcceptableException ex) {
+        log.warn("Solicitud rechazada porque el encabezado Accept no admite el formato de respuesta");
+        return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
     }
 
     /** P-HU13-05: datos persistidos incoherentes; se registran y no se corrigen ni se ocultan. */

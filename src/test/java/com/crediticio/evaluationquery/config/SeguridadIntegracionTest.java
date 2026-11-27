@@ -21,6 +21,8 @@ import java.nio.file.Path;
 import java.security.KeyPair;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
 
@@ -55,10 +57,21 @@ class SeguridadIntegracionTest {
     static void configurarClavePublica(DynamicPropertyRegistry registro) {
         registro.add("evaluationquery.jwt.clave-publica",
                 () -> "file:" + ClavesRsaPrueba.escribirClavePublica(CLAVES, directorioClaves));
+        // Las pruebas de Spring Boot desactivan por defecto la exportación de métricas: se habilita la de Prometheus.
+        registro.add("management.prometheus.metrics.export.enabled", () -> true);
+        registro.add("evaluationquery.metrics.enabled", () -> true);
+        registro.add("evaluationquery.metrics.username", () -> "prometheus-test");
+        registro.add("evaluationquery.metrics.password", () -> "prometheus-test-password");
     }
 
     @Autowired
     private MockMvc mockMvc;
+
+    private static String basicMetrics() {
+        String credenciales = Base64.getEncoder().encodeToString(
+                "prometheus-test:prometheus-test-password".getBytes(StandardCharsets.UTF_8));
+        return "Basic " + credenciales;
+    }
 
     private static String bearer(String rol) {
         return "Bearer " + TokensPrueba.firmar(CLAVES, TokensPrueba.claimsValidos(EMISOR, rol).build());
@@ -139,6 +152,35 @@ class SeguridadIntegracionTest {
     }
 
     @Test
+    void prometheusDebeRechazarAccesoAnonimo() throws Exception {
+        mockMvc.perform(get("/actuator/prometheus"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void prometheusDebeAceptarSoloCredencialesBasicDeLaCuentaTecnica() throws Exception {
+        mockMvc.perform(get("/actuator/prometheus")
+                        .header(HttpHeaders.AUTHORIZATION, basicMetrics()))
+                .andExpect(status().isOk())
+                .andExpect(result -> assertThat(result.getResponse().getContentAsString())
+                        .contains("# HELP"));
+    }
+
+    @Test
+    void prometheusNoDebeAceptarJwtDeUsuarioComoCredencialDeScrape() throws Exception {
+        mockMvc.perform(get("/actuator/prometheus")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(JwtConfig.ROL_ANALISTA)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void prometheusDebeDenegarMetodosDistintosDeGet() throws Exception {
+        mockMvc.perform(post("/actuator/prometheus")
+                        .header(HttpHeaders.AUTHORIZATION, basicMetrics()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void otrosEndpointsDeActuatorNoDebenSerAccesibles() throws Exception {
         mockMvc.perform(get("/actuator/env")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/actuator/env").header(HttpHeaders.AUTHORIZATION, bearer(JwtConfig.ROL_ADMINISTRADOR)))
@@ -200,6 +242,15 @@ class SeguridadIntegracionTest {
                 .andExpect(result -> assertThat(List.of(
                         result.getResponse().getHeader(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS).split(",\\s*")))
                         .contains("X-Trace-Id"));
+    }
+
+    /** Fase 2: el frontend lee el nombre sugerido del archivo exportado (PDF/Excel). */
+    @Test
+    void lasRespuestasDebenExponerContentDispositionAlNavegador() throws Exception {
+        mockMvc.perform(get("/actuator/health").header(HttpHeaders.ORIGIN, "http://localhost:3000"))
+                .andExpect(result -> assertThat(List.of(
+                        result.getResponse().getHeader(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS).split(",\\s*")))
+                        .contains("X-Trace-Id", "Content-Disposition"));
     }
 
     @ParameterizedTest

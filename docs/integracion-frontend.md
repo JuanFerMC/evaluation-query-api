@@ -36,6 +36,9 @@ como mínimo). No existen credenciales por defecto.
 
 - Errores: `{"errorCode": "...", "message": "...", "details": [...], "traceId": "..."}`.
 - 401 `NO_AUTENTICADO` (sin token, inválido o expirado); 403 `ACCESO_DENEGADO` (rol sin permiso).
+- 415 `UNSUPPORTED_MEDIA_TYPE` si un cuerpo no se envía como `application/json`; 406 sin cuerpo si `Accept` no
+  admite el formato de respuesta (p. ej. `Accept: application/json` en la exportación PDF).
+- La exportación expone `Content-Disposition` por CORS para leer el nombre sugerido del archivo.
 - `X-Trace-Id`: el frontend puede enviar un UUID; si no lo envía o no es válido, la API genera uno. Todas las
   respuestas lo devuelven y la cabecera está expuesta por CORS.
 - Fechas de evaluación en formato ISO-8601 local, por ejemplo `2026-10-10T10:00:00`; `fechaGeneracion` de las

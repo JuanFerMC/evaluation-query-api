@@ -60,6 +60,8 @@ Los archivos se generan en memoria. La API no persiste el documento en el sistem
 | 401 | `NO_AUTENTICADO` | Token ausente o inválido |
 | 403 | `ACCESO_DENEGADO` | Rol no autorizado |
 | 404 | `SOLICITANTE_NO_ENCONTRADO` | Al menos un solicitante no existe |
+| 406 | (sin cuerpo) | El encabezado `Accept` no admite el formato del archivo (p. ej. `Accept: application/json` en `/pdf`); el `traceId` viaja en `X-Trace-Id` |
+| 415 | `UNSUPPORTED_MEDIA_TYPE` | El cuerpo no se envía como `application/json`; `details` y el encabezado `Accept` indican los tipos admitidos |
 | 500 | `INTERNAL_ERROR` | Error inesperado durante el procesamiento |
 
 Los errores utilizan el sobre común de la API:
@@ -101,7 +103,7 @@ curl --request POST "http://localhost:8082/api/v1/evaluaciones/export/excel" \
 
 ### Consumo desde frontend
 
-El frontend debe enviar el JWT en `Authorization`, serializar los IDs seleccionados en `solicitanteIds` y tratar el cuerpo exitoso como un `Blob`. El nombre sugerido puede obtenerse de `Content-Disposition`; si el navegador no expone ese encabezado por CORS, se puede utilizar el nombre fijo documentado arriba. El frontend debe liberar la URL temporal creada para iniciar la descarga cuando ya no la necesite.
+El frontend debe enviar el JWT en `Authorization`, serializar los IDs seleccionados en `solicitanteIds` y tratar el cuerpo exitoso como un `Blob`. El nombre sugerido puede obtenerse de `Content-Disposition`, que la API expone por CORS; si un proxy intermedio lo elimina, se puede utilizar el nombre fijo documentado arriba. El frontend debe liberar la URL temporal creada para iniciar la descarga cuando ya no la necesite.
 
 ## Consideraciones
 
